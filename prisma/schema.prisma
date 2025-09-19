@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+url="mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/school_attendance"
+}
+
+
+  //url      = "mysql://admin:Ramchin123@school-attendance.cr2ue6u44sny.eu-north-1.rds.amazonaws.com:3306/school_attendance"
+
+enum Gender {
+  M
+  F
+  O
+}
+
+enum DayOfWeek {
+  Mon
+  TueschoolAttendance@2a02:4780:12:f6a7::1:3306
+  Wed
+  Thu
+  Fri
+  Sat
+}
+model Attendance_user {
+  id        Int    @id @default(autoincrement())
+  username  String
+  password  String
+  role      String
+  school_id Int
+  fcmToken  String? 
+
+  school   School    @relation(fields: [school_id], references: [id])
+  staff    Staff?    @relation("UserToStaff1")
+  students Student[]
+  admin    Admin?
+  messages  RealTimeMessage[]
+  @@unique([username, school_id]) // usernames unique per school
+  @@index([school_id])
+}
+
+model RealTimeMessage {
+  id         Int              @id @default(autoincrement())
+  text       String
+  role       String
+  school_id  Int
+  classId    Int?
+  createdAt  DateTime         @default(now())
+
+  senderId   Int
+  sender     Attendance_user  @relation(fields: [senderId], references: [id])
+  senderName String           
+
+  school     School           @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
+  @@index([senderId])
+}
+
+
+model School {
+  id      Int    @id @default(autoincrement())
+  name    String @unique
+  address String
+  photo   Bytes?
+
+  users              Attendance_user[]
+  staff              Staff[]
+  classes            Classes[]
+  holidays           Holidays[]
+  students           Student[]
+  feedbacks          Feedback[]
+  classTimetables    ClassTimetable[]
+  staffAttendances   StaffAttendance[]
+  studentAttendances StudentAttendance[]
+  admins             Admin[]
+  Messages           Messages[]
+ Tickets            Tickets[]
+ blockedSchool  BlockedSchool[] 
+ messages  RealTimeMessage[]
+ 
+}
+model BlockedSchool{
+  id      Int    @id @default(autoincrement())
+  school_id Int @unique
+  reason String
+  school   School    @relation(fields: [school_id], references: [id])
+  @@index([school_id])
+
+}
+model Classes {
+  id        Int    @id @default(autoincrement())
+  class     String @map("class")
+  section   String
+  school_id Int
+
+  school            School              @relation(fields: [school_id], references: [id])
+  holidays          Holidays[]          @relation("HolidayClasses")
+  staff             Staff[]             @relation("class_ids")
+  students          Student[]
+  studentAttendance StudentAttendance[]
+  classTimetables   ClassTimetable[]
+  feedbacks         Feedback[]
+
+  @@index([school_id])
+}
+
+model Holidays {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  reason    String
+  school_id Int?
+  class_ids Json
+  fn        String?  @db.Char(1)
+  an        String   @db.Char(1)
+
+  school  School?   @relation(fields: [school_id], references: [id])
+  classes Classes[] @relation("HolidayClasses")
+
+  @@index([school_id])
+}
+model Student {
+  id            Int     @id @default(autoincrement())
+  username      String
+  name          String?
+  gender        Gender?
+  email         String
+  mobile        String
+  class_id      Int
+  school_id     Int
+  
+  photo         Bytes?
+  father_name   String  @default("null")
+  community     String  @default("null")
+  DOB           DateTime?  @default(now())
+  route         String  @default("null")
+
+  class      Classes         @relation(fields: [class_id], references: [id])
+  school     School          @relation(fields: [school_id], references: [id])
+  user       Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
+  attendance StudentAttendance[]
+
+  @@unique([username, school_id]) // ✅ student username unique within school
+  @@index([school_id])
+  @@index([class_id])
+}
+model Staff {
+  id          Int     @id @default(autoincrement())
+  username    String
+  designation String
+  name        String?
+  email       String   @default("null")
+  gender      Gender?
+  mobile      String
+  school_id   Int
+  class_ids   Json     @default("null")
+  photo       Bytes?   @default("null")
+  faculty     String   @default("null")
+
+  school      School          @relation(fields: [school_id], references: [id])
+  user        Attendance_user @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
+  attendances StaffAttendance[]
+  classes     Classes[]       @relation("class_ids")
+
+  @@unique([username, school_id]) // ✅ username unique within school
+  @@unique([mobile, school_id])   // ✅ mobile unique within school
+  @@index([school_id])
+}
+
+model Admin {
+  id          Int     @id @default(autoincrement())
+  name        String?
+  designation String
+  gender      String  @default("null")
+  mobile      String
+  email       String  @default("example@gmail.com")
+  photo       Bytes?
+  username    String
+  school_id   Int
+
+  school School          @relation(fields: [school_id], references: [id])
+  user   Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
+
+  @@unique([username, school_id]) // ✅ username unique within school
+  @@unique([mobile, school_id])   // ✅ mobile unique within school
+  @@index([school_id])
+}
+
+model StaffAttendance {
+  username  String
+  school_id Int
+  date      DateTime
+  fn_status String   @default("null")
+  an_status String   @default("null")
+
+  school School @relation(fields: [school_id], references: [id])
+  staff  Staff  @relation(fields: [username, school_id], references: [username, school_id])
+  
+@@unique([username, school_id, date], name: "username_school_date_staff")
+  @@index([school_id])
+}
+
+model StudentAttendance {
+  username  String
+  school_id Int
+  class_id  Int
+  date      DateTime
+  fn_status String   @default("null")
+  an_status String   @default("null")
+
+  class   Classes @relation(fields: [class_id], references: [id])
+  student Student @relation(fields: [username, school_id], references: [username, school_id])
+  school  School  @relation(fields: [school_id], references: [id])
+
+  @@unique([username, school_id, date], name: "username_school_date") // ✅ unique per student per day per school
+  @@index([school_id])
+  @@index([class_id])
+}
+
+
+model ClassTimetable {
+  id           Int       @id @default(autoincrement())
+  schoolId     Int?
+  classesId    Int?
+  dayOfWeek    DayOfWeek
+  periodNumber Int
+  subject      String
+
+  School  School?  @relation(fields: [schoolId], references: [id])
+  Classes Classes? @relation(fields: [classesId], references: [id])
+  @@unique([schoolId, classesId, dayOfWeek, periodNumber], name: "schoolId_classesId_dayOfWeek_periodNumber")
+
+  @@index([schoolId])
+  @@index([classesId])
+}
+
+model Feedback {
+  id         Int      @id @default(autoincrement())
+  username    String
+  name       String
+  email      String
+  feedback   String
+  school_id  Int
+  class_id   Int
+  created_at DateTime @default(now())
+
+  school School  @relation(fields: [school_id], references: [id])
+  class  Classes @relation(fields: [class_id], references: [id])
+}
+//add parthi
+model Tickets {
+  id          Int      @id @default(autoincrement())
+  username    String
+  name        String
+  email       String
+  tickets     String
+  school_id   Int
+  status      String   @default("Pending")
+  created_at  DateTime @default(now())
+  modified_at DateTime @default(now())
+
+  school School @relation(fields: [school_id], references: [id])
+}
+
+
+
+model Messages {
+  id        Int     @id @default(autoincrement())
+  messages  String  @db.VarChar(200)
+  date      String? @db.VarChar(45)
+  school_id Int
+
+  school School @relation(fields: [school_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([school_id])
+}
+
+model LeaveRequest {
+  id         Int      @id @default(autoincrement())
+  username   String // The user requesting leave
+  role       Role     @default(student) // Role of requester (optional, helpful for logic)
+  school_id  Int
+  class_id   Int
+  from_date  DateTime // Leave start date
+  to_date    DateTime // Leave end date
+  reason     String? // Optional leave reason
+  status     String   @default("pending") // "pending", "approved", "rejected"
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([username])
+  @@index([school_id, class_id])
+}
+model Homework{
+  id         Int      @id @default(autoincrement())
+  school_id  Int
+  class_id   Int
+  title      String
+  subject    String
+  description String
+  assigned_date  DateTime 
+  due_date    DateTime 
+  assigned_by String
+  attachments String?
+
+  @@index([school_id, class_id])
+}
+enum Role {
+  admin
+  staff
+  student
+}

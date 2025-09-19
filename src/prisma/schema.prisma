@@ -1,0 +1,19 @@
+model Holiday {
+  id         Int    @id @default(autoincrement())
+  date       DateTime
+  reason     String
+  fn         String?
+  an         String?
+  class_ids  String
+  school_id  Int
+}
+model Student {
+  id        Int    @id @default(autoincrement())
+  username  String @unique
+  name      String
+  gender    String
+  email     String
+  mobile    String
+  class_id  String
+  school_id String
+}
