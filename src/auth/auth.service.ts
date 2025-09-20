@@ -350,7 +350,7 @@ const classes = await this.prisma.classes.findUnique({
             photo: null,
             school_id: schoolIdInt,
             class_id: Number(classIdInt),
-            DOB:new Date(DOB),
+            DOB:new Date(Date.now()),
             community,
             father_name,
             route

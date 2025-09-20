@@ -1,5 +1,5 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { SignatureMiddleware } from './signature.middleware';import { AppController } from './app.controller';
+import {  Module } from '@nestjs/common';
+import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HolidaysModule } from './holidays/holidays.module';
 import { AttendanceModule } from './attendance/attendance.module';
@@ -44,7 +44,4 @@ import { HomeworkModule } from'./homework/homework.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(SignatureMiddleware).forRoutes('*');
-  }}
+export class AppModule {}
