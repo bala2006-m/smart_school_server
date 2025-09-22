@@ -84,7 +84,7 @@ async updateStudent(
       });
     }
 
-    const id = parseInt(schoolId, 10);
+    const id = parseInt(schoolId);
     if (isNaN(id)) {
       throw new BadRequestException({
         status: 'failure',

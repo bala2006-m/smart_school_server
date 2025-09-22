@@ -153,8 +153,53 @@ async findByMobile(mobile: string, school_id: number) {
       count: staffList.length,
       staff: staffList,
     };
-  }
+  }async getAllBySchoolID(school_id: number) {
+    const staffList = await this.prisma.staff.findMany({
+      where: { school_id },
+      select: {
+        id: true,
+        username: true,
+        designation: true,
+        name: true,
+        email: true,
+        gender: true,
+        mobile: true,
+        class_ids: true,
+        faculty:true,
+      },
+      orderBy: { name: 'asc' },
+    });
 
+    return {
+      status: 'success',
+      count: staffList.length,
+      staff: staffList,
+    };
+  }
+async getAllBySchool(school_id: number) {
+    const staffList = await this.prisma.staff.findMany({
+      where: { school_id },
+      select: {
+        id: true,
+        username: true,
+        designation: true,
+        name: true,
+        email: true,
+        gender: true,
+        mobile: true,
+        class_ids: true,
+        photo: true,
+        faculty:true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      status: 'success',
+      count: staffList.length,
+      staff: staffList,
+    };
+  }
   /** ---------------- UPDATE STAFF ---------------- */
   async updateStaff(username: string, dto: UpdateStaffDto, school_id: number) {
     const staff = await this.prisma.staff.findUnique({ where: {  username_school_id: { username, school_id: Number(school_id) } } });

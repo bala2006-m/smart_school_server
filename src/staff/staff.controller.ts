@@ -167,8 +167,16 @@ export class StaffController {
     if (!schoolId) {
       return { status: 'error', message: 'Missing school_id' };
     }
-    const id = parseInt(schoolId, 10);
+    const id = parseInt(schoolId);
     return this.staffService.getAllBySchool(id);
+  }
+   @Get('all-by-school_id')
+  async getAllBySchool(@Query('school_id') schoolId: string) {
+    if (!schoolId) {
+      return { status: 'error', message: 'Missing school_id' };
+    }
+    const id = parseInt(schoolId);
+    return this.staffService.getAllBySchoolId(id);
   }
   @Put('update')
   async updateStaff(
