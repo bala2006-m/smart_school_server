@@ -153,30 +153,8 @@ async findByMobile(mobile: string, school_id: number) {
       count: staffList.length,
       staff: staffList,
     };
-  }async getAllBySchoolID(school_id: number) {
-    const staffList = await this.prisma.staff.findMany({
-      where: { school_id },
-      select: {
-        id: true,
-        username: true,
-        designation: true,
-        name: true,
-        email: true,
-        gender: true,
-        mobile: true,
-        class_ids: true,
-        faculty:true,
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      status: 'success',
-      count: staffList.length,
-      staff: staffList,
-    };
   }
-async getAllBySchool(school_id: number) {
+ async getAllBySchoolId(school_id: number) {
     const staffList = await this.prisma.staff.findMany({
       where: { school_id },
       select: {
@@ -188,7 +166,6 @@ async getAllBySchool(school_id: number) {
         gender: true,
         mobile: true,
         class_ids: true,
-        photo: true,
         faculty:true,
       },
       orderBy: { name: 'asc' },
