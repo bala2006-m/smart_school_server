@@ -8,6 +8,158 @@ import { log } from 'console';
 @Injectable()
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
+async getStudentsWithFlatClassData(schoolId?: string) {
+  try {
+    const whereClause = schoolId ? { school_id: Number(schoolId) } : {};
+
+    // Use include only, no select at top-level
+    const students = await this.prisma.student.findMany({
+      where: whereClause,
+      orderBy: { name: 'asc' },
+      include: {
+        class: {
+          select: {
+            class: true,
+            section: true,
+          },
+        },
+      },
+    });
+
+    // Map to flatten the response
+    const flatStudents = students.map(student => ({
+      username: student.username,
+      name: student.name,
+      gender: student.gender,
+      email: student.email,
+      mobile: student.mobile,
+      class_id: student.class_id,
+      community: student.community === "null" ? null : student.community,
+      father_name: student.father_name === "null" ? null : student.father_name,
+      DOB: student.DOB,
+      route: student.route === "null" ? null : student.route,
+      class: student.class?.class ?? null,
+      section: student.class?.section ?? null,
+    }));
+
+    return { status: 'success', students: flatStudents };
+  } catch (error) {
+    return { status: 'error', message: 'Query failed', details: error.message };
+  }
+}
+
+
+
+  async getCombinedStudentReport(
+  schoolId: string,
+  fromDateInput: string,
+  toDateInput: string,
+) {
+  try {
+    const fromDate = new Date(fromDateInput);
+    const toDate = new Date(toDateInput);
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime()) || fromDate > toDate) {
+      return { status: 'error', message: 'Invalid date range' };
+    }
+
+    // 1. Fetch all students in one query
+    const students = await this.prisma.student.findMany({
+      where: { school_id: Number(schoolId) },
+      orderBy: { name: 'asc' },
+      select: {
+        username: true,
+        name: true,
+        gender: true,
+        class_id: true,
+       
+      },
+    });
+
+    // 2. Extract unique class_ids and usernames to batch fetch related data
+    const classIds = Array.from(new Set(students.map(s => s.class_id)));
+    const usernames = students.map(s => s.username);
+
+    // 3. Batch fetch classes for all class_ids
+    const classes = await this.prisma.classes.findMany({
+      where: {
+        id: { in: classIds },
+        school_id: Number(schoolId),
+      },
+      select: {
+        id: true,
+        class: true,
+        section: true,
+      },
+    });
+    const classMap = new Map(classes.map(c => [c.id, c]));
+
+    // 4. Batch fetch attendance records for all students in the date range
+    const attendanceRecords = await this.prisma.studentAttendance.findMany({
+      where: {
+        username: { in: usernames },
+        date: { gte: fromDate, lte: toDate },
+        school_id: Number(schoolId),
+      },
+      select: {
+        username: true,
+        date: true,
+        fn_status: true,
+        an_status: true,
+        class_id: true,
+      },
+    });
+
+    // Organize attendance by username for quick lookup
+    const attendanceMap = new Map<string, typeof attendanceRecords>();
+for (const record of attendanceRecords) {
+  if (!attendanceMap.has(record.username)) {
+    attendanceMap.set(record.username, []);
+  }
+  attendanceMap.get(record.username)!.push(record);
+}
+
+
+    // 5. Build final detailed student list combining data
+    const detailedStudents = students.map(student => {
+      const classInfo = classMap.get(student.class_id) || { class: '', section: '' };
+      const attendance = attendanceMap.get(student.username) || [];
+
+      // Aggregate attendance info as per your needs
+      const fnPresentDates = attendance.filter(a => a.fn_status === 'Present').map(a => a.date);
+      const anPresentDates = attendance.filter(a => a.an_status === 'Present').map(a => a.date);
+      const fnAbsentDates = attendance.filter(a => a.fn_status === 'Absent').map(a => a.date);
+      const anAbsentDates = attendance.filter(a => a.an_status === 'Absent').map(a => a.date);
+      const totalMarking = fnPresentDates.length + anPresentDates.length + fnAbsentDates.length + anAbsentDates.length;
+      const totalPresent = fnPresentDates.length + anPresentDates.length;
+      const totalAbsent = fnAbsentDates.length + anAbsentDates.length;
+      const totalPercentage = totalMarking > 0 ? ((totalPresent / totalMarking) * 100).toFixed(2) : "0";
+
+      return {
+        ...student,
+        class: classInfo.class,
+        section: classInfo.section,
+        fnPresentDates,
+        anPresentDates,
+        fnAbsentDates,
+        anAbsentDates,
+        TotalMarking: totalMarking,
+        totalPercentage: `${totalPercentage} %`,
+      };
+    });
+
+    return {
+      status: 'success',
+      students: detailedStudents,
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      message: `Failed to fetch combined student report ${error.message}`,
+      details: error.message,
+    };
+  }
+}
+
   async getSchoolAndClassByUsername(username: string,school_id:number) {
     return this.prisma.student.findUnique({
       where: { username_school_id: { username:username, school_id: Number(school_id)} },

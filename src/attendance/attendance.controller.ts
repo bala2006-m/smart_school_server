@@ -14,7 +14,40 @@ import { IsNumber } from 'class-validator';
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
+@Get('student/fetch_stu_absentees_school')
+  async getAbsenteesSchool(
+    @Query('date') date: string,
+    @Query('school_id') schoolId: string,
+  ) {
+    if (!date || !schoolId ) {
+      throw new BadRequestException('Missing parameters');
+    }
 
+    const parsedDate = new Date(date);
+    const schoolIdInt = parseInt(schoolId);
+
+    const fnAbsentees = await this.attendanceService.getAbsenteesWithDetails(
+      parsedDate,
+      schoolIdInt,
+      'fn_status',
+    );
+    const anAbsentees = await this.attendanceService.getAbsenteesWithDetails(
+      parsedDate,
+      schoolIdInt,
+      'an_status',
+    );
+
+    return {
+      status: 'success',
+      fn_absentees: fnAbsentees,
+      an_absentees: anAbsentees,
+    };
+  }
+
+
+
+
+  
   @Get('fetch_stu_absent_all')
   async getAbsentStudents(
     @Query('date') date: string,

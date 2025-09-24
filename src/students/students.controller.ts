@@ -7,6 +7,16 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 @Controller('students')
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
+@Get('periodical-report-all')
+  async periodicalReportAll(@Query('schoolId') username: string,@Query('fromDate') from: string,@Query('toDate') to: string) {
+    return this.studentsService.getCombinedStudentReport(username,from,to);
+  }
+@Get('fetch_all_student_data_with_class')
+  async fetchAllStudentsClassID(@Query('school_id') schoolId?: string) {
+    return this.studentsService.getStudentsWithFlatClassData(schoolId);
+  }
+
+
  @Get('school-class')
   async getSchoolAndClass(@Query('username') username: string,@Query('school_id') school_id: number) {
     return this.studentsService.getSchoolAndClassByUsername(username,school_id);

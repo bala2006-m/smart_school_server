@@ -5,6 +5,36 @@ import { UpdateAdminDto } from './dto/update-admin.dto';
 @Injectable()
 export class AdminService {
   constructor(private prisma: PrismaService) {}
+async fetchAdminAndSchoolData(username: string, schoolId: number) {
+  const [adminData, schoolData] = await Promise.all([
+    this.prisma.admin.findUnique({
+      where: { username_school_id: { username, school_id: schoolId } },
+      select: {
+        name: true,
+        designation: true,
+        mobile: true,
+        photo: true,
+      },
+    }),
+    this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: {
+        name: true,
+        address: true,
+        photo: true,
+      },
+    }),
+  ]);
+
+  return {
+    adminData: adminData
+      ? { ...adminData, photo: adminData.photo ? Buffer.from(adminData.photo).toString('base64') : null }
+      : null,
+    schoolData: schoolData
+      ? { ...schoolData, photo: schoolData.photo ? Buffer.from(schoolData.photo).toString('base64') : null }
+      : null,
+  };
+}
 
   /**
    * Get one admin (by username + school_id) or all admins

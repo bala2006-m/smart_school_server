@@ -6,7 +6,21 @@ import { UpdateAdminDto } from './dto/update-admin.dto';
 @Controller('admin')
 export class AdminController {
   constructor(private adminService: AdminService) {}
-
+@Get('fetch_admin_and_school_data')
+  async fetchAdminAndSchoolData(@Query('username') username: string,@Query('school_id') school_id:string) {
+    try {
+      const data = await this.adminService.fetchAdminAndSchoolData(username,Number(school_id));
+      return {
+        status: 'success',
+        data,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
   @Get('fetch_admin')
   async fetchAdminData(@Query('username') username?: string,@Query('school_id') school_id?:number) {
     try {

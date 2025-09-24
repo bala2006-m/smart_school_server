@@ -622,4 +622,66 @@ async getStudentAttendanceBetweenDateRange(
 
     return absentees.map((a) => a.username);
   }
+
+
+  async getAbsenteesWithDetails(
+  date: Date,
+  schoolId: number,
+  sessionField: 'fn_status' | 'an_status',
+): Promise<
+  Array<{
+    username: string;
+    name: string | null;
+    gender: string | null;
+    email: string | null;
+    mobile: string | null;
+    class_id: number;
+    school_id: number;
+  }>
+> {
+  try {
+    const absentees = await this.prisma.studentAttendance.findMany({
+      where: {
+        date,
+        school_id: schoolId,
+        [sessionField]: 'A',
+      },
+      select: {
+        username: true,
+        class_id: true,
+      },
+    });
+
+    if (absentees.length === 0) {
+      return [];
+    }
+
+    // Fetch student details for all absentees in one query
+    const usernames = absentees.map((a) => a.username);
+
+    const students = await this.prisma.student.findMany({
+      where: {
+        username: { in: usernames },
+        school_id: schoolId,
+      },
+      select: {
+        username: true,
+        name: true,
+        gender: true,
+        email: true,
+        mobile: true,
+        class_id: true,
+        school_id: true,
+      
+      },
+    });
+
+    return students;
+  } catch (error) {
+    console.error('Error in getAbsenteesWithDetails:', error);
+    throw error;
+  }
+}
+
+
 }
