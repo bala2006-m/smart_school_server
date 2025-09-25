@@ -135,7 +135,7 @@ async getCombinedStudentReport(
         if (att.an_status === 'A') anAbsentDates.push(dateStr);
       }
 
-      const totalMarking = attendance.length * 2; // two sessions per attendance record
+      const totalMarking = attendance.length; // two sessions per attendance record
       const totalPresent = fnPresentDates.length + anPresentDates.length;
       const totalPercentage = totalMarking > 0 ? ((totalPresent / totalMarking) * 100).toFixed(2) : "0";
 
