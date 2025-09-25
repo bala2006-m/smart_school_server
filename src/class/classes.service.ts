@@ -134,7 +134,7 @@ async findClassId(school_id: string, className: string, section: string): Promis
 
 
   async getClassData(schoolId: number, classId: number) {
-    return this.prisma.classes.findFirst({
+    return this.prisma.classes.findUnique({
       where: {
         id: classId,
         school_id: schoolId,

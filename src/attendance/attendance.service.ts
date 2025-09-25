@@ -624,10 +624,10 @@ async getStudentAttendanceBetweenDateRange(
   }
 
 
-  async getAbsenteesWithDetails(
+ async getAbsenteesWithClassDetails(
   date: Date,
   schoolId: number,
-  sessionField: 'fn_status' | 'an_status',
+  sessionField: 'fn_status' | 'an_status'
 ): Promise<
   Array<{
     username: string;
@@ -637,9 +637,12 @@ async getStudentAttendanceBetweenDateRange(
     mobile: string | null;
     class_id: number;
     school_id: number;
+    class: string | null;
+    section: string | null;
   }>
 > {
   try {
+    // Step 1: Get absentees' usernames and class_ids
     const absentees = await this.prisma.studentAttendance.findMany({
       where: {
         date,
@@ -656,9 +659,10 @@ async getStudentAttendanceBetweenDateRange(
       return [];
     }
 
-    // Fetch student details for all absentees in one query
     const usernames = absentees.map((a) => a.username);
+    const classIds = [...new Set(absentees.map((a) => a.class_id))];
 
+    // Step 2: Get student details
     const students = await this.prisma.student.findMany({
       where: {
         username: { in: usernames },
@@ -672,13 +676,34 @@ async getStudentAttendanceBetweenDateRange(
         mobile: true,
         class_id: true,
         school_id: true,
-      
       },
     });
 
-    return students;
+    // Step 3: Get class details for all involved class_ids
+    const classes = await this.prisma.classes.findMany({
+      where: {
+        id: { in: classIds },
+        school_id: schoolId,
+      },
+      select: {
+        id: true,
+        class: true,
+        section: true,
+      },
+    });
+
+    const classById = Object.fromEntries(
+      classes.map((c) => [c.id, { class: c.class, section: c.section }])
+    );
+
+    // Step 4: Combine student and class info
+    return students.map((student) => ({
+      ...student,
+      class: classById[student.class_id]?.class ?? null,
+      section: classById[student.class_id]?.section ?? null,
+    }));
   } catch (error) {
-    console.error('Error in getAbsenteesWithDetails:', error);
+    console.error('Error in getAbsenteesWithClassDetails:', error);
     throw error;
   }
 }

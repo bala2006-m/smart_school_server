@@ -26,12 +26,12 @@ export class AttendanceController {
     const parsedDate = new Date(date);
     const schoolIdInt = parseInt(schoolId);
 
-    const fnAbsentees = await this.attendanceService.getAbsenteesWithDetails(
+    const fnAbsentees = await this.attendanceService.getAbsenteesWithClassDetails(
       parsedDate,
       schoolIdInt,
       'fn_status',
     );
-    const anAbsentees = await this.attendanceService.getAbsenteesWithDetails(
+    const anAbsentees = await this.attendanceService.getAbsenteesWithClassDetails(
       parsedDate,
       schoolIdInt,
       'an_status',
