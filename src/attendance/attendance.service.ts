@@ -407,7 +407,10 @@ async getStudentAttendanceBetweenDateRange(
 
   const totalSessions = records.length * 2;
   const totalPresent = fnPresentDates.length + anPresentDates.length;
-  const totalPercentage = totalSessions === 0 ? 0 : (totalPresent / totalSessions) * 100;
+  const totalPercentage =  records.length > 0 
+  ? parseFloat(((totalPresent /  records.length) * 100).toFixed(2)) 
+  : 0;
+
 
   return {
     status: 'success',
