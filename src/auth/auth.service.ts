@@ -377,7 +377,7 @@ const classes = await this.prisma.classes.findUnique({
 
     // ✅ Email options
     const mailOptions = {
-      from: 'balam20000002@gmail.com',
+      from: 'Noreply.ramchintech@gmail.com',
       to: email,
       subject: 'Your OTP Code',
       text: `Your OTP code is: ${otp}`,

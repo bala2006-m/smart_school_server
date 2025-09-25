@@ -50,7 +50,7 @@ async getStudentsWithFlatClassData(schoolId?: string) {
 
 
 
-  async getCombinedStudentReport(
+async getCombinedStudentReport(
   schoolId: string,
   fromDateInput: string,
   toDateInput: string,
@@ -62,7 +62,7 @@ async getStudentsWithFlatClassData(schoolId?: string) {
       return { status: 'error', message: 'Invalid date range' };
     }
 
-    // 1. Fetch all students in one query
+    // 1. Fetch all students for the school
     const students = await this.prisma.student.findMany({
       where: { school_id: Number(schoolId) },
       orderBy: { name: 'asc' },
@@ -71,29 +71,24 @@ async getStudentsWithFlatClassData(schoolId?: string) {
         name: true,
         gender: true,
         class_id: true,
-       
       },
     });
 
-    // 2. Extract unique class_ids and usernames to batch fetch related data
+    // 2. Fetch classes once for all class_ids
     const classIds = Array.from(new Set(students.map(s => s.class_id)));
-    const usernames = students.map(s => s.username);
-
-    // 3. Batch fetch classes for all class_ids
     const classes = await this.prisma.classes.findMany({
       where: {
         id: { in: classIds },
         school_id: Number(schoolId),
       },
-      select: {
-        id: true,
-        class: true,
-        section: true,
-      },
+      select: { id: true, class: true, section: true },
     });
     const classMap = new Map(classes.map(c => [c.id, c]));
 
-    // 4. Batch fetch attendance records for all students in the date range
+    // 3. Batch fetch attendance for all students within date range
+    // Use usernames array for filtering
+    const usernames = students.map(s => s.username);
+
     const attendanceRecords = await this.prisma.studentAttendance.findMany({
       where: {
         username: { in: usernames },
@@ -107,31 +102,41 @@ async getStudentsWithFlatClassData(schoolId?: string) {
         an_status: true,
         class_id: true,
       },
+      orderBy: { date: 'asc' },
     });
 
-    // Organize attendance by username for quick lookup
+    // Organize attendance by username
     const attendanceMap = new Map<string, typeof attendanceRecords>();
-for (const record of attendanceRecords) {
-  if (!attendanceMap.has(record.username)) {
-    attendanceMap.set(record.username, []);
-  }
-  attendanceMap.get(record.username)!.push(record);
-}
+    for (const record of attendanceRecords) {
+      if (!attendanceMap.has(record.username)) {
+        attendanceMap.set(record.username, []);
+      }
+      attendanceMap.get(record.username)!.push(record);
+    }
 
-
-    // 5. Build final detailed student list combining data
+    // 4. Build detailed student report combining class and attendance info
     const detailedStudents = students.map(student => {
       const classInfo = classMap.get(student.class_id) || { class: '', section: '' };
       const attendance = attendanceMap.get(student.username) || [];
 
-      // Aggregate attendance info as per your needs
-      const fnPresentDates = attendance.filter(a => a.fn_status === 'Present').map(a => a.date);
-      const anPresentDates = attendance.filter(a => a.an_status === 'Present').map(a => a.date);
-      const fnAbsentDates = attendance.filter(a => a.fn_status === 'Absent').map(a => a.date);
-      const anAbsentDates = attendance.filter(a => a.an_status === 'Absent').map(a => a.date);
-      const totalMarking = fnPresentDates.length + anPresentDates.length + fnAbsentDates.length + anAbsentDates.length;
+      // Use improved attendance status codes: 'P' and 'A'
+      // Prepare arrays for present/absent half-day dates as ISO strings
+      const fnPresentDates: string[] = [];
+      const anPresentDates: string[] = [];
+      const fnAbsentDates: string[] = [];
+      const anAbsentDates: string[] = [];
+
+      for (const att of attendance) {
+        const dateStr = att.date.toISOString().split('T')[0];
+
+        if (att.fn_status === 'P') fnPresentDates.push(dateStr);
+        if (att.fn_status === 'A') fnAbsentDates.push(dateStr);
+        if (att.an_status === 'P') anPresentDates.push(dateStr);
+        if (att.an_status === 'A') anAbsentDates.push(dateStr);
+      }
+
+      const totalMarking = attendance.length * 2; // two sessions per attendance record
       const totalPresent = fnPresentDates.length + anPresentDates.length;
-      const totalAbsent = fnAbsentDates.length + anAbsentDates.length;
       const totalPercentage = totalMarking > 0 ? ((totalPresent / totalMarking) * 100).toFixed(2) : "0";
 
       return {
@@ -159,6 +164,7 @@ for (const record of attendanceRecords) {
     };
   }
 }
+
 
   async getSchoolAndClassByUsername(username: string,school_id:number) {
     return this.prisma.student.findUnique({

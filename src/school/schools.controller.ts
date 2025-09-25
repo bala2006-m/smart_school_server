@@ -5,13 +5,17 @@ import {
   Body,
   UseInterceptors,
   UploadedFile,
-  Get,Query
+  Get,Query,Param
 } from '@nestjs/common';import { SchoolsService } from './schools.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 @Controller('school')
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
+  @Get('combined/:schoolId')
+  async getCombinedData(@Param('schoolId') schoolId: string) {
+    return this.schoolsService.fetchCombinedSchoolData(Number(schoolId));
+  }
 
   @Get('fetch_school_data')
   async getSchoolById(@Query('id') id: string) {
