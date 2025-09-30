@@ -39,6 +39,9 @@ model ExamMarks {
   created_at    DateTime @default(now())
   updated_by    String
   updated_at    DateTime @updatedAt
+  status        String? @default("inactive")
+  date          DateTime?
+  session       String?
 
   class  Classes         @relation(fields: [class_id], references: [id])
   school School          @relation(fields: [school_id], references: [id])

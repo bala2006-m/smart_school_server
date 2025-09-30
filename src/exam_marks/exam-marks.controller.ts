@@ -59,14 +59,28 @@ export class ExamMarksController {
     @Query('school_id') schoolId?: string,
     @Query('class_id') classId?: string,
     @Query('username') username?: string,
+     @Query('title') title?: string,
+
   ) {
     return this.examMarksService.findAll({
       schoolId: schoolId ? Number(schoolId) : undefined,
       classId: classId ? Number(classId) : undefined,
       username,
+      title
     });
   }
+@Get('fetch_titles')
+  async findTitles(
+    @Query('school_id') schoolId?: string,
+    @Query('class_id') classId?: string,
 
+  ) {
+    return this.examMarksService.findTitles({
+      schoolId: schoolId ? Number(schoolId) : undefined,
+      classId: classId ? Number(classId) : undefined,
+  
+    });
+  }
   // ✅ Update exam mark by ID
   @Patch('update_by_id/:id')
   async update(
@@ -74,6 +88,25 @@ export class ExamMarksController {
     @Body() updateExamMarkDto: UpdateExamMarkDto,
   ) {
     return this.examMarksService.update(id, updateExamMarkDto);
+  }
+
+  
+ @Patch('update_status_by_id/:id/:status')
+  async updateById(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('status') status: string,
+  ) {
+    return this.examMarksService.updateById(id,status);
+  }
+
+
+   @Patch('update_status_by_school_id_class_id/:school_id/:class_id/:status')
+  async updateStatus(
+    @Param('school_id') school_id: string,
+     @Param('class_id') class_id: string,
+     @Param('status') status: string,
+  ) {
+    return this.examMarksService.updateStatus(Number(school_id),Number(class_id),status );
   }
 
   // ✅ Delete exam mark by ID

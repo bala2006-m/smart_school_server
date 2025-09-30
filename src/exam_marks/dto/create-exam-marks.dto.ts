@@ -34,4 +34,10 @@ export class CreateExamMarkDto {
 
   @IsString()
   updated_by: string;
+
+  @IsString()
+  date:string
+
+  @IsString()
+  session:string
 }
