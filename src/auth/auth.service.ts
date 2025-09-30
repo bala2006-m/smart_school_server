@@ -149,7 +149,7 @@ export class AuthService {
     };
   }
   async registerStudent(dto: RegisterStudentDto) {
-    const { username, name, gender, email, mobile, class_id, school_id } = dto;
+    const { username, name, gender, email, mobile, class_id, school_id,fatherName,community,route,dob } = dto;
 
     // Check if username exists
     const exists = await this.prisma.student.findUnique({
@@ -170,6 +170,11 @@ export class AuthService {
           mobile,
           class_id: Number(class_id),
           school_id: Number(school_id),
+          father_name:fatherName,
+          community,
+          route:route,
+          DOB:new Date(dob)
+
         },
       });
 

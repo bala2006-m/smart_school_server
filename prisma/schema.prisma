@@ -24,6 +24,29 @@ enum DayOfWeek {
   Sat
 }
 
+model ExamMarks {
+  id            Int      @id @default(autoincrement())
+  school_id     Int
+  class_id      Int
+  username      String
+  title         String
+  min_max_marks Json
+  marks         Json
+  subjects      Json
+  subject_rank  Json
+  rank          String?
+  created_by    String
+  created_at    DateTime @default(now())
+  updated_by    String
+  updated_at    DateTime @updatedAt
+
+  class  Classes         @relation(fields: [class_id], references: [id])
+  school School          @relation(fields: [school_id], references: [id])
+  @@unique([school_id, class_id, username, title], name: "unique_exam_per_student")
+}
+
+
+
 model Attendance_user {
   id        Int     @id @default(autoincrement())
   username  String
@@ -37,7 +60,7 @@ model Attendance_user {
   students Student[]
   admin    Admin?
   messages RealTimeMessage[]
-
+  
   @@unique([username, school_id]) // usernames unique per school
   @@index([school_id])
 }
@@ -80,6 +103,7 @@ model School {
   Tickets            Tickets[]
   blockedSchool      BlockedSchool[]
   messages           RealTimeMessage[]
+  examMarks ExamMarks[]
 }
 
 model BlockedSchool {
@@ -104,6 +128,7 @@ model Classes {
   studentAttendance StudentAttendance[]
   classTimetables   ClassTimetable[]
   feedbacks         Feedback[]
+  examMarks ExamMarks[]
 
   @@index([school_id])
 }

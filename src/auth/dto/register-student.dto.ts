@@ -32,4 +32,23 @@ export class RegisterStudentDto {
   @IsNumberString()
   @IsNotEmpty()
   school_id: string;
+  
+  @IsString()
+  @IsNotEmpty()
+  fatherName: string;
+  
+  @IsString()
+  @IsNotEmpty()
+  community: string;
+  
+  
+  @IsString()
+  @IsNotEmpty()
+  route: string;
+  
+  @IsString()
+  @IsNotEmpty()
+  dob: string;
+
+  
 }

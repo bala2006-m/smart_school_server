@@ -16,8 +16,14 @@ export class StaffService {
   /** ---------------- UPDATE PROFILE ---------------- */
   async updateProfile(username: string, data: UpdateStaffDto, school_id: number) {
     const { photo, ...restDto } = data;
-    const updateData: any = { ...restDto };
-
+    //const updateData: any = { ...restDto };
+const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name.toUpperCase;
+    if (data.designation !== undefined) updateData.designation = data.designation.toUpperCase;
+    if (data.mobile !== undefined) updateData.mobile = data.mobile;
+    if (data.gender !== undefined) updateData.gender = data.gender.toUpperCase;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.photo) updateData.photo = Buffer.from(data.photo, 'base64');
     if (photo) {
       try {
         updateData.photo = Buffer.from(photo, 'base64');

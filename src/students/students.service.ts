@@ -535,7 +535,7 @@ const totalPercentage = totalMarking > 0
   }
 async updateStudent(
   username: string,
-  dto: UpdateStudentDto,
+  data: UpdateStudentDto,
   school_id: string
 ): Promise<{ status: string; student?: any; message?: string }> {
   // Find the student by composite unique key (username + school_id)
@@ -547,11 +547,21 @@ async updateStudent(
     return { status: 'error', message: 'Student not found' };
   }
 
-  const { photo, DOB, ...restDto } = dto;
+  const { photo, DOB, ...restDto } = data;
 
   // Prepare update data
-  const updateData: any = { ...restDto };
+  //const updateData: any = { ...restDto };
+const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name.toUpperCase;
+    if (data.father_name !== undefined) updateData.fathername = data.father_name.toUpperCase;
+    if (data.community !== undefined) updateData.community = data.community.toUpperCase;
+    if (data.route !== undefined) updateData.route = data.route.toUpperCase;
+    if (data.DOB !== undefined) updateData.DOB = data.DOB;
 
+    if (data.mobile !== undefined) updateData.mobile = data.mobile;
+    if (data.gender !== undefined) updateData.gender = data.gender.toUpperCase;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.photo) updateData.photo = Buffer.from(data.photo, 'base64');
   // Handle photo conversion from base64 string to Buffer, if provided
   if (photo) {
     try {

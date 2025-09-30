@@ -19,7 +19,7 @@ import { NewsModule } from './news/news.module';
 import { BlockedSchoolModule} from'./blocked-school/blocked-school.module';
 import { UserModule } from './edit-password/user.module';
 import { HomeworkModule } from'./homework/homework.module';
-
+import { ExamMarksModule } from'./exam_marks/exam-marks.module'
 @Module({
   imports: [
     StudentsModule,
@@ -40,6 +40,7 @@ import { HomeworkModule } from'./homework/homework.module';
          BlockedSchoolModule,
          UserModule,
          HomeworkModule,
+         ExamMarksModule
   ],
   controllers: [AppController],
   providers: [AppService],
