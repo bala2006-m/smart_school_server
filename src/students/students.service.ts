@@ -367,87 +367,112 @@ const totalPercentage = totalMarking > 0
   }
 
   async getUsersWithLongestConsecutiveAbsentDays(params: {
-    school_id?: number;
-    class_id?: number;
-    limit: number; // minimum streak length to consider
-  }) {
-    const { school_id, class_id, limit } = params;
+  school_id?: number;
+  class_id?: number;
+  limit: number; // minimum streak length to consider
+}) {
+  const { school_id, class_id, limit } = params;
 
-    if (!limit || limit < 1) {
-      throw new Error('limit parameter must be a positive integer');
-    }
-
-    const where: any = {
-      OR: [{ fn_status: 'A' }, { an_status: 'A' }],
-    };
-    if (school_id !== undefined) where.school_id = Number(school_id);
-    if (class_id !== undefined) where.class_id = Number(class_id);
-
-    const records = await this.prisma.studentAttendance.findMany({
-      where,
-      select: {
-        username: true,
-        date: true,
-      },
-      orderBy: [{ username: 'asc' }, { date: 'asc' }],
-    });
-
-    const grouped: Record<string, Date[]> = {};
-    for (const rec of records) {
-      if (!grouped[rec.username]) grouped[rec.username] = [];
-      grouped[rec.username].push(new Date(rec.date));
-    }
-
-    const result: { username: string; dates: string[] }[] = [];
-
-    for (const [username, dates] of Object.entries(grouped)) {
-      dates.sort((a, b) => a.getTime() - b.getTime());
-
-      let maxStreakStartIndex = 0;
-      let maxStreakLength = 1;
-
-      let currentStreakStartIndex = 0;
-      let currentStreakLength = 1;
-
-      for (let i = 1; i < dates.length; i++) {
-        const diff =
-          (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24);
-        if (diff === 1) {
-          // Consecutive day
-          currentStreakLength++;
-        } else {
-          // Sequence breaks here, check if current streak is longest
-          if (currentStreakLength > maxStreakLength) {
-            maxStreakLength = currentStreakLength;
-            maxStreakStartIndex = currentStreakStartIndex;
-          }
-          // Reset to new streak
-          currentStreakStartIndex = i;
-          currentStreakLength = 1;
-        }
-      }
-
-      // After loop, check last streak
-      if (currentStreakLength > maxStreakLength) {
-        maxStreakLength = currentStreakLength;
-        maxStreakStartIndex = currentStreakStartIndex;
-      }
-
-      // Include only if streak is at least `limit`
-      if (maxStreakLength >= limit) {
-        const streakDates = dates
-          .slice(maxStreakStartIndex, maxStreakStartIndex + maxStreakLength)
-          .map((d) => d.toISOString().split('T')[0]);
-
-        result.push({
-          username,
-          dates: streakDates,
-        });
-      }
-    }
-
-    return result;
+  if (!limit || limit < 1) {
+    throw new Error('limit parameter must be a positive integer');
   }
+
+  const where: any = {
+    OR: [{ fn_status: 'A' }, { an_status: 'A' }],
+  };
+  if (school_id !== undefined) where.school_id = Number(school_id);
+  if (class_id !== undefined) where.class_id = Number(class_id);
+
+  const records = await this.prisma.studentAttendance.findMany({
+    where,
+    select: {
+      username: true,
+      date: true,
+    },
+    orderBy: [{ username: 'asc' }, { date: 'asc' }],
+  });
+
+  const grouped: Record<string, Date[]> = {};
+  for (const rec of records) {
+    if (!grouped[rec.username]) grouped[rec.username] = [];
+    grouped[rec.username].push(new Date(rec.date));
+  }
+
+  const result: { username: string; dates: string[] }[] = [];
+
+  for (const [username, dates] of Object.entries(grouped)) {
+    dates.sort((a, b) => a.getTime() - b.getTime());
+
+    let maxStreakStartIndex = 0;
+    let maxStreakLength = 1;
+
+    let currentStreakStartIndex = 0;
+    let currentStreakLength = 1;
+
+    for (let i = 1; i < dates.length; i++) {
+      const diff =
+        (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24);
+      if (diff === 1) {
+        // Consecutive day
+        currentStreakLength++;
+      } else {
+        // Sequence breaks here, check if current streak is longest
+        if (currentStreakLength > maxStreakLength) {
+          maxStreakLength = currentStreakLength;
+          maxStreakStartIndex = currentStreakStartIndex;
+        }
+        // Reset to new streak
+        currentStreakStartIndex = i;
+        currentStreakLength = 1;
+      }
+    }
+
+    // After loop, check last streak
+    if (currentStreakLength > maxStreakLength) {
+      maxStreakLength = currentStreakLength;
+      maxStreakStartIndex = currentStreakStartIndex;
+    }
+
+    // Include only if streak is at least `limit`
+    if (maxStreakLength >= limit) {
+      const streakDates = dates
+        .slice(maxStreakStartIndex, maxStreakStartIndex + maxStreakLength)
+        .map((d) => d.toISOString().split('T')[0]);
+
+      result.push({
+        username,
+        dates: streakDates,
+      });
+    }
+  }
+
+  // Fetch student details for usernames in results
+  const usernames = result.map((r) => r.username);
+
+  const students = await this.prisma.student.findMany({
+    where: {
+      username: { in: usernames },
+      ...(school_id !== undefined && { school_id: Number(school_id) }),
+    },
+    select: {
+      username: true,
+      name: true,
+      mobile: true,
+    },
+  });
+
+  const studentMap = new Map(students.map((s) => [s.username, s]));
+
+  // Add name and mobile to result objects
+  const enrichedResult = result.map((r) => ({
+    ...r,
+    name: studentMap.get(r.username)?.name || null,
+    mobile: studentMap.get(r.username)?.mobile || null,
+  }));
+
+  return enrichedResult;
+}
+
 
   async getStudentsWithLowAttendance(params: {
     school_id?: number;

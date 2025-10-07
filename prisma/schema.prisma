@@ -40,8 +40,8 @@ model ExamMarks {
   updated_by    String
   updated_at    DateTime @updatedAt
   status        String? @default("inactive")
-  date          DateTime?
-  session       String?
+  date          Json    
+  session       Json    
 
   class  Classes         @relation(fields: [class_id], references: [id])
   school School          @relation(fields: [school_id], references: [id])

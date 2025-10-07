@@ -36,8 +36,8 @@ export class CreateExamMarkDto {
   updated_by: string;
 
   @IsString()
-  date:string
+  date:any
 
   @IsString()
-  session:string
+  session:any
 }
