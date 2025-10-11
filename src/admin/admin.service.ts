@@ -127,10 +127,10 @@ async getAllAdmin( school_id?: number) {
 
     // build updateData only with provided fields
     const updateData: any = {};
-    if (data.name !== undefined) updateData.name = data.name.toUpperCase;
-    if (data.designation !== undefined) updateData.designation = data.designation.toUpperCase;
+    if (data.name !== undefined) updateData.name = data.name.toUpperCase();
+    if (data.designation !== undefined) updateData.designation = data.designation.toUpperCase();
     if (data.mobile !== undefined) updateData.mobile = data.mobile;
-    if (data.gender !== undefined) updateData.gender = data.gender.toUpperCase;
+    if (data.gender !== undefined) updateData.gender = data.gender.toUpperCase();
     if (data.email !== undefined) updateData.email = data.email;
     if (data.photoBase64) updateData.photo = Buffer.from(data.photoBase64, 'base64');
 

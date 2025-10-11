@@ -716,14 +716,14 @@ async updateStudent(
   // Prepare update data
   //const updateData: any = { ...restDto };
 const updateData: any = {};
-    if (data.name !== undefined) updateData.name = data.name.toUpperCase;
-    if (data.father_name !== undefined) updateData.fathername = data.father_name.toUpperCase;
-    if (data.community !== undefined) updateData.community = data.community.toUpperCase;
-    if (data.route !== undefined) updateData.route = data.route.toUpperCase;
+    if (data.name !== undefined) updateData.name = data.name.toUpperCase();
+    if (data.father_name !== undefined) updateData.fathername = data.father_name.toUpperCase();
+    if (data.community !== undefined) updateData.community = data.community.toUpperCase();
+    if (data.route !== undefined) updateData.route = data.route.toUpperCase();
     if (data.DOB !== undefined) updateData.DOB = data.DOB;
 
     if (data.mobile !== undefined) updateData.mobile = data.mobile;
-    if (data.gender !== undefined) updateData.gender = data.gender.toUpperCase;
+    if (data.gender !== undefined) updateData.gender = data.gender.toUpperCase();
     if (data.email !== undefined) updateData.email = data.email;
     if (data.photo) updateData.photo = Buffer.from(data.photo, 'base64');
   // Handle photo conversion from base64 string to Buffer, if provided
