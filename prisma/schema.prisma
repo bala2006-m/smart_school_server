@@ -15,6 +15,12 @@ enum Gender {
   O
 }
 
+enum StudentFeesStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
 enum DayOfWeek {
   Mon
   Tue
@@ -23,6 +29,104 @@ enum DayOfWeek {
   Fri
   Sat
 }
+model FeeStructure {
+  id          Int       @id @default(autoincrement())
+  school_id   Int
+  class_id    Int
+  title String?
+  descriptions Json?
+  amounts     Json?
+  total_amount      Float?
+  start_date  DateTime? @default(now())
+  end_date    DateTime?
+  created_by  String
+  created_at  DateTime  @default(now())
+  updated_by  String
+  updated_at  DateTime  @updatedAt
+  status      String    @default("inactive") // "active" or "inactive"
+
+  class  Classes @relation(fields: [class_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
+
+  @@unique([school_id, class_id, title], name: "unique_fee_per_class")
+}
+
+model StudentFees {
+  id                   Int               @id @default(autoincrement())
+  school_id            Int
+  class_id             Int
+  username             String
+  total_amount         Float
+  paid_amount          Float
+  payment_ids          Json?
+  fee_structure_snapshot Json?
+  status               StudentFeesStatus @default(PENDING)
+  last_payment_date    DateTime?
+  remarks              String?
+
+  user   Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
+  class  Classes         @relation(fields: [class_id], references: [id])
+  school School          @relation(fields: [school_id], references: [id])
+  payments FeePayments[]
+
+  // @@unique([school_id, class_id, username], name: "unique_fee_per_student")
+}
+
+model FeePayments {
+  id             Int          @id @default(autoincrement())
+  student_fee_id Int
+  amount         Float
+  payment_date   DateTime     @default(now())
+  method         String?
+  transaction_id String?
+  status         String       @default("pending")
+
+  studentFee StudentFees @relation(fields: [student_fee_id], references: [id])
+}
+
+// model FeePayments {
+//   id             Int      @id @default(autoincrement())
+//   student_fee_id Int
+//   amount         Float
+//   payment_date   DateTime
+//   method         String?
+//   transaction_id String?
+// }
+
+// model StudentFees {
+//   id           Int               @id @default(autoincrement())
+//   school_id    Int
+//   class_id     Int
+//   username     String
+//   total_amount Float
+//   paid_amount  Float
+//   paid_fee_ids Json?
+//   status       StudentFeesStatus
+
+//   user   Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
+//   class  Classes         @relation(fields: [class_id], references: [id])
+//   school School          @relation(fields: [school_id], references: [id])
+//   // @@unique([school_id, class_id, username], name: "unique_exam_per_student")
+// }
+
+// model FeeStructure {
+//   id          Int      @id @default(autoincrement())
+//   school_id   Int
+//   class_id    Int
+//   description String
+//   amount      Float
+//   end_date    DateTime
+//   created_by  String
+//   created_at  DateTime @default(now())
+//   updated_by  String
+//   updated_at  DateTime @updatedAt
+//   status      String?  @default("inactive")
+
+//   class  Classes @relation(fields: [class_id], references: [id])
+//   school School  @relation(fields: [school_id], references: [id])
+
+//   @@unique([school_id, class_id, description], name: "unique_fee_per_class")
+// }
 
 model ExamMarks {
   id            Int      @id @default(autoincrement())
@@ -34,21 +138,20 @@ model ExamMarks {
   marks         Json
   subjects      Json
   subject_rank  Json
-  rank          String  @default("-")
+  rank          String   @default("-")
   created_by    String
   created_at    DateTime @default(now())
   updated_by    String
   updated_at    DateTime @updatedAt
-  status        String? @default("inactive")
-  date          Json    
-  session       Json    
+  status        String?  @default("inactive")
+  date          Json
+  session       Json
 
-  class  Classes         @relation(fields: [class_id], references: [id])
-  school School          @relation(fields: [school_id], references: [id])
+  class  Classes @relation(fields: [class_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
+
   @@unique([school_id, class_id, username, title], name: "unique_exam_per_student")
 }
-
-
 
 model Attendance_user {
   id        Int     @id @default(autoincrement())
@@ -58,12 +161,13 @@ model Attendance_user {
   school_id Int
   fcmToken  String?
 
-  school   School            @relation(fields: [school_id], references: [id])
-  staff    Staff?            @relation("UserToStaff1")
-  students Student[]
-  admin    Admin?
-  messages RealTimeMessage[]
-  
+  school      School            @relation(fields: [school_id], references: [id])
+  staff       Staff?            @relation("UserToStaff1")
+  students    Student[]
+  admin       Admin?
+  messages    RealTimeMessage[]
+  studentFees StudentFees[]
+
   @@unique([username, school_id]) // usernames unique per school
   @@index([school_id])
 }
@@ -106,7 +210,9 @@ model School {
   Tickets            Tickets[]
   blockedSchool      BlockedSchool[]
   messages           RealTimeMessage[]
-  examMarks ExamMarks[]
+  examMarks          ExamMarks[]
+  feeStructure       FeeStructure[]
+  studentFees        StudentFees[]
 }
 
 model BlockedSchool {
@@ -131,7 +237,9 @@ model Classes {
   studentAttendance StudentAttendance[]
   classTimetables   ClassTimetable[]
   feedbacks         Feedback[]
-  examMarks ExamMarks[]
+  examMarks         ExamMarks[]
+  feeStructure      FeeStructure[]
+  studentFees       StudentFees[]
 
   @@index([school_id])
 }

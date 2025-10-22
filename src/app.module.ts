@@ -19,7 +19,9 @@ import { NewsModule } from './news/news.module';
 import { BlockedSchoolModule} from'./blocked-school/blocked-school.module';
 import { UserModule } from './edit-password/user.module';
 import { HomeworkModule } from'./homework/homework.module';
-import { ExamMarksModule } from'./exam_marks/exam-marks.module'
+import { ExamMarksModule } from'./exam_marks/exam-marks.module';
+import { StudentFeesModule } from './student_fees/student_fees.module';
+import { FeeStructureModule } from './fees/fee_structure.module';
 @Module({
   imports: [
     StudentsModule,
@@ -40,7 +42,9 @@ import { ExamMarksModule } from'./exam_marks/exam-marks.module'
          BlockedSchoolModule,
          UserModule,
          HomeworkModule,
-         ExamMarksModule
+         ExamMarksModule,
+         StudentFeesModule,
+         FeeStructureModule,
   ],
   controllers: [AppController],
   providers: [AppService],
