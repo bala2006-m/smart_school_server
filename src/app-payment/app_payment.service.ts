@@ -6,8 +6,9 @@ import { addMonths, differenceInMonths, isAfter } from 'date-fns';
 export class AppPaymentService {
   constructor(private prisma: PrismaService) {}
 
-  private readonly PRICE_PER_STUDENT = 0.05;
+  private readonly PRICE_PER_STUDENT = 5;
   private readonly FREE_TRIAL_MONTHS = 3;
+  private readonly GST_PERCENTAGE = 18; // 18% GST
 
   // Calculate due amount for a school
   async calculateDueAmount(schoolId: number) {
@@ -18,7 +19,8 @@ export class AppPaymentService {
     if (!school) {
       throw new Error('School not found');
     }
-const createdAt = school.createdAt;
+
+    const createdAt = school.createdAt;
     if (!createdAt) {
       throw new Error('School creation date not found');
     }
@@ -50,13 +52,21 @@ const createdAt = school.createdAt;
     };
   }
 
-  // Get payment amount based on plan and student count
+  // Get payment amount based on plan and student count (with GST included)
   calculatePaymentAmount(studentsCount: number, paymentPlan: 'MONTHLY' | 'YEARLY') {
+    let baseAmount: number;
+    
     if (paymentPlan === 'YEARLY') {
-      return studentsCount * this.PRICE_PER_STUDENT * 10; // Pay for 10 months
+      baseAmount = studentsCount * this.PRICE_PER_STUDENT * 10; // Pay for 10 months
     } else {
-      return studentsCount * this.PRICE_PER_STUDENT; // Pay for 1 month
+      baseAmount = studentsCount * this.PRICE_PER_STUDENT; // Pay for 1 month
     }
+
+    // Calculate GST and total
+    const gstAmount = (baseAmount * this.GST_PERCENTAGE) / 100;
+    const totalAmount = baseAmount + gstAmount;
+
+    return totalAmount; // Return only total amount with GST included
   }
 
   // Create payment record
@@ -71,7 +81,8 @@ const createdAt = school.createdAt;
     const school = await this.prisma.school.findUnique({
       where: { id: data.schoolId },
     });
-const createdAt = school!.createdAt;
+
+    const createdAt = school!.createdAt;
     if (!createdAt) {
       throw new Error('School creation date not found');
     }
@@ -91,7 +102,7 @@ const createdAt = school!.createdAt;
         schoolId: data.schoolId,
         studentsCount: data.studentsCount,
         paymentPlan: data.paymentPlan,
-        amount,
+        amount, // Total amount with 18% GST included
         periodStart,
         periodEnd,
         transactionId: data.transactionId,
@@ -101,7 +112,6 @@ const createdAt = school!.createdAt;
 
     return payment;
   }
-
 
   // Get all payments for a school
   async getSchoolPayments(schoolId: number) {
@@ -130,16 +140,17 @@ const createdAt = school!.createdAt;
       payments: school!.appPayment,
     };
   }
+
   async updatePaymentStatus(
     paymentId: number, 
     status: 'COMPLETED' | 'FAILED',
-    transactionId?: string  // Add this parameter
+    transactionId?: string
   ) {
     const payment = await this.prisma.appPayment.update({
       where: { id: paymentId },
       data: { 
         status,
-        transactionId: transactionId || null,  // Store transaction ID
+        transactionId: transactionId || null,
       },
     });
 
