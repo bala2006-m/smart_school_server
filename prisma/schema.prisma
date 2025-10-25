@@ -195,7 +195,8 @@ model School {
   name    String @unique
   address String
   photo   Bytes?
-
+  createdAt      DateTime? @default(now())
+  dueDate      DateTime? 
   users              Attendance_user[]
   staff              Staff[]
   classes            Classes[]

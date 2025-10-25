@@ -65,6 +65,8 @@ export class SchoolsService {
         name: true,
         address: true,
         photo: true,
+        createdAt:true,
+        dueDate:true,
       },
     });
   }
