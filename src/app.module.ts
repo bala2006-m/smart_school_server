@@ -22,7 +22,8 @@ import { HomeworkModule } from'./homework/homework.module';
 import { ExamMarksModule } from'./exam_marks/exam-marks.module';
 import { StudentFeesModule } from './student_fees/student_fees.module';
 import { FeeStructureModule } from './fees/fee_structure.module';
-@Module({
+import { AppPaymentModule } from './app-payment/app_payment.module';
+ @Module({
   imports: [
     StudentsModule,
         HolidaysModule,
@@ -45,6 +46,7 @@ import { FeeStructureModule } from './fees/fee_structure.module';
          ExamMarksModule,
          StudentFeesModule,
          FeeStructureModule,
+         AppPaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

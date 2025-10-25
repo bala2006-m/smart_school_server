@@ -190,6 +190,31 @@ model RealTimeMessage {
   @@index([senderId])
 }
 
+model AppPayment {
+  id              Int         @id @default(autoincrement())
+  schoolId        Int
+  school          School      @relation(fields: [schoolId], references: [id])
+  studentsCount   Int         // Students at time of payment
+  paymentPlan     AppPaymentPlan
+  amount          Float
+  paidAt          DateTime    @default(now())
+  periodStart     DateTime    // Billing period start
+  periodEnd       DateTime    // Billing period end
+  transactionId   String?     // Payment gateway transaction ID
+  status          AppPaymentStatus @default(PENDING)
+  createdAt       DateTime    @default(now())
+}
+
+enum AppPaymentPlan {
+  MONTHLY
+  YEARLY
+}
+
+enum AppPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
 model School {
   id      Int    @id @default(autoincrement())
   name    String @unique
@@ -214,6 +239,7 @@ model School {
   examMarks          ExamMarks[]
   feeStructure       FeeStructure[]
   studentFees        StudentFees[]
+  appPayment         AppPayment[]
 }
 
 model BlockedSchool {

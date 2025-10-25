@@ -5,7 +5,7 @@ import {
   Body,
   UseInterceptors,
   UploadedFile,
-  Get,Query,Param
+  Get,Query,Param,HttpException, HttpStatus,Patch
 } from '@nestjs/common';import { SchoolsService } from './schools.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -88,5 +88,74 @@ export class SchoolsController {
   ) {
     return this.schoolsService.create(createSchoolDto, file);
   }
+
+  @Patch(':id/due-date')
+  async updateDueDate(
+    @Param('id') id: string,
+    @Body() body: { dueDate: string }, // Expected format: "2025-12-31" or ISO string
+  ) {
+    try {
+      const dueDate = new Date(body.dueDate);
+      
+      if (isNaN(dueDate.getTime())) {
+        throw new HttpException('Invalid date format', HttpStatus.BAD_REQUEST);
+      }
+
+      const updatedSchool = await this.schoolsService.updateDueDate(
+        Number(id),
+        dueDate,
+      );
+
+      return {
+        message: 'Due date updated successfully',
+        school: updatedSchool,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to update due date',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Get school with payment history
+  @Get(':id/with-payments')
+  async getSchoolWithPayments(@Param('id') id: string) {
+    try {
+      const school = await this.schoolsService.getSchoolWithPayments(Number(id));
+      
+      if (!school) {
+        throw new HttpException('School not found', HttpStatus.NOT_FOUND);
+      }
+      
+      return school;
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to fetch school with payments',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Check if payment is overdue
+  @Get(':id/payment-status')
+  async checkPaymentStatus(@Param('id') id: string) {
+    try {
+      const isOverdue = await this.schoolsService.isPaymentOverdue(Number(id));
+      const school = await this.schoolsService.getSchoolById(Number(id));
+
+      return {
+        schoolId: Number(id),
+        isOverdue,
+        dueDate: school?.dueDate,
+        message: isOverdue ? 'Payment is overdue' : 'Payment is up to date',
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to check payment status',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }  
 }
 

@@ -99,5 +99,68 @@ async create(createSchoolDto: CreateSchoolDto, file: Express.Multer.File) {
   });
 }
 
+async updateDueDate(schoolId: number, dueDate: Date) {
+    const school = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+    });
 
+    if (!school) {
+      throw new Error('School not found');
+    }
+
+    return this.prisma.school.update({
+      where: { id: schoolId },
+      data: { dueDate },
+    });
+  }
+  // Get school with payment history
+  async getSchoolWithPayments(schoolId: number) {
+    return this.prisma.school.findUnique({
+      where: { id: schoolId },
+      include: {
+        appPayment: {
+          orderBy: { paidAt: 'desc' },
+        },
+      },
+    });
+  }
+
+  // Check if payment is overdue
+  async isPaymentOverdue(schoolId: number): Promise<boolean> {
+    const school = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { dueDate: true, createdAt: true },
+    });
+
+    if (!school) {
+      throw new Error('School not found');
+    }
+
+    // If no due date set, check if trial is over (3 months from creation)
+    if (!school.dueDate && school.createdAt) {
+      const trialEndDate = new Date(school.createdAt);
+      trialEndDate.setMonth(trialEndDate.getMonth() + 3);
+      return new Date() > trialEndDate;
+    }
+
+    // If due date is set, check if it's passed
+    if (school.dueDate) {
+      return new Date() > school.dueDate;
+    }
+
+    return false;
+  }
+  async getSchoolById(schoolId: number) {
+    return this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        createdAt: true,
+        dueDate: true,
+      },
+    });
+    
+  }
 }
