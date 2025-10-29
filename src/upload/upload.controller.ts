@@ -6,6 +6,7 @@ import {
   UploadedFile,
   UseInterceptors,
   Body,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -64,5 +65,16 @@ export class UploadController {
     );
 
     return { images: imageUrls };
+  }
+   @Delete(':schoolId/:filename')
+  deleteImage(@Param('schoolId') schoolId: string, @Param('filename') filename: string) {
+    const filePath = join('/var/www/images', schoolId, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return { message: 'File not found' };
+    }
+
+    fs.unlinkSync(filePath);
+    return { message: 'Deleted successfully' };
   }
 }
