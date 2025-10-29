@@ -10,9 +10,9 @@ export class StudentFeesService {
    * Assign fee record to a student based on class and school.
    * This pulls FeeStructure, sums up the total, and stores snapshot.
    */
-  async assignStudentFees(schoolId: number, classId: number, username: string, createdBy: string) {
+  async assignStudentFees(schoolId: number, classId: number, username: string, id: number,createdBy:string) {
     const structures = await this.prisma.feeStructure.findMany({
-      where: { school_id: schoolId, class_id: classId, status: 'active' },
+      where: { school_id: schoolId, class_id: classId, status: 'active',id },
     });
 
     if (!structures.length) {
@@ -23,12 +23,13 @@ export class StudentFeesService {
 
     return this.prisma.studentFees.create({
       data: {
+        id:id,
         school_id: schoolId,
         class_id: classId,
         username,
         total_amount: total,
         paid_amount: 0,
-        fee_structure_snapshot: structures,
+      createdBy:createdBy,
         status: StudentFeesStatus.PENDING,
       },
     });
@@ -40,7 +41,7 @@ export class StudentFeesService {
    */
   async recordPayment(studentFeeId: number, amount: number, method: string, transactionId?: string) {
     const studentFee = await this.prisma.studentFees.findUnique({
-      where: { id: studentFeeId },
+      where: { aId : studentFeeId },
     });
 
     if (!studentFee) throw new NotFoundException('Student fee record not found');
@@ -65,11 +66,11 @@ export class StudentFeesService {
 
     // Update the student fee progress
     await this.prisma.studentFees.update({
-      where: { id: studentFeeId },
+      where: { aId: studentFeeId },
       data: {
         paid_amount: newPaid,
         status,
-        last_payment_date: new Date(),
+      
       },
     });
 
@@ -101,7 +102,7 @@ export class StudentFeesService {
    */
   async updateFeeStatus(studentFeeId: number, status: StudentFeesStatus) {
     return this.prisma.studentFees.update({
-      where: { id: studentFeeId },
+      where: { aId: studentFeeId },
       data: { status },
     });
   }

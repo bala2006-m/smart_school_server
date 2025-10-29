@@ -5,6 +5,7 @@ import { BadRequestException, Injectable ,NotFoundException} from '@nestjs/commo
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { log } from 'console';
+import { tr } from 'date-fns/locale';
 @Injectable()
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
@@ -177,38 +178,52 @@ const totalPercentage = totalMarking > 0
       },
     });
   }
-  async findByUsername(username: string,school_id:number) {
-    try {
-      const student = await this.prisma.student.findUnique({
-        where: { username_school_id: { username:username, school_id: Number(school_id)}  },
-        select: {
-          name: true,
-          gender: true,
-          email: true,
-          mobile: true,
-          photo: true,
-          class_id: true,
-          school_id: true,
-          community:true,
-          father_name:true,
-          DOB:true,
-          route:true,
-
+async findByUsername(username: string, school_id: number) {
+  try {
+    const student = await this.prisma.student.findUnique({
+      where: {
+        username_school_id: {
+          username,
+          school_id: Number(school_id),
         },
-      });
+      },
+      select: {
+        name: true,
+        gender: true,
+        email: true,
+        mobile: true,
+        photo: true,
+        class_id: true,
+        school_id: true,
+        community: true,
+        father_name: true,
+        DOB: true,
+        route: true,
+        class: {
+          select: {
+            id: true,
+            class: true,
+            section: true, 
+          },
+        },
+      },
+    });
 
-      return student
-        ? { status: 'success', student }
-        : {
-            status: 'success',
-            student: null,
-            message: `No student found for username: ${username}`,
-          };
-    } catch (error) {
-      console.error('Error in findByUsername:', error); // <-- also important
-      throw error;
+    if (!student) {
+      return {
+        status: 'success',
+        student: null,
+        message: `No student found for username: ${username}`,
+      };
     }
+
+    return { status: 'success', student };
+  } catch (error) {
+    console.error('Error in findByUsername:', error);
+    throw error;
   }
+}
+
 
   async registerStudent(dto: RegisterStudentDto) {
     const existing = await this.prisma.student.findUnique({

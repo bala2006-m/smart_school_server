@@ -52,24 +52,22 @@ model FeeStructure {
 }
 
 model StudentFees {
-  id                   Int               @id @default(autoincrement())
+  aId                   Int               @id @default(autoincrement())
+  id                   Int               
   school_id            Int
   class_id             Int
   username             String
   total_amount         Float
   paid_amount          Float
-  payment_ids          Json?
-  fee_structure_snapshot Json?
   status               StudentFeesStatus @default(PENDING)
-  last_payment_date    DateTime?
+  createdBy            String
+  createdAt    DateTime?
   remarks              String?
 
   user   Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
   class  Classes         @relation(fields: [class_id], references: [id])
   school School          @relation(fields: [school_id], references: [id])
   payments FeePayments[]
-
-  // @@unique([school_id, class_id, username], name: "unique_fee_per_student")
 }
 
 model FeePayments {
@@ -81,7 +79,7 @@ model FeePayments {
   transaction_id String?
   status         String       @default("pending")
 
-  studentFee StudentFees @relation(fields: [student_fee_id], references: [id])
+  studentFee StudentFees @relation(fields: [student_fee_id], references: [aId])
 }
 
 // model FeePayments {

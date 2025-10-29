@@ -23,6 +23,10 @@ import { ExamMarksModule } from'./exam_marks/exam-marks.module';
 import { StudentFeesModule } from './student_fees/student_fees.module';
 import { FeeStructureModule } from './fees/fee_structure.module';
 import { AppPaymentModule } from './app-payment/app_payment.module';
+import { StudentsFeesModule } from './student-fees/student-fees.module';
+import { FeePaymentsModule } from './fee-payments/fee-payments.module';
+import { UploadModule } from './upload/upload.module';
+
  @Module({
   imports: [
     StudentsModule,
@@ -47,6 +51,9 @@ import { AppPaymentModule } from './app-payment/app_payment.module';
          StudentFeesModule,
          FeeStructureModule,
          AppPaymentModule,
+         StudentsFeesModule,
+         FeePaymentsModule,
+         UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

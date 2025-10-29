@@ -14,9 +14,6 @@ import { StudentFeesStatus } from '@prisma/client';
 export class StudentFeesController {
   constructor(private readonly studentFeesService: StudentFeesService) {}
 
-  /**
-   * Assign fees to a student (Admin action)
-   */
   @Post('assign')
   async assignStudentFees(
     @Body()
@@ -24,13 +21,15 @@ export class StudentFeesController {
       schoolId: number;
       classId: number;
       username: string;
-      createdBy: string;
+      id: number;
+      createdBy:string;
     },
   ) {
     return this.studentFeesService.assignStudentFees(
       body.schoolId,
       body.classId,
       body.username,
+      body.id,
       body.createdBy,
     );
   }
