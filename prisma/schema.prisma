@@ -29,6 +29,20 @@ enum DayOfWeek {
   Fri
   Sat
 }
+enum ImageAndVideosType {
+IMAGE
+VIDEO
+}
+model ImageAndVideos {
+  id          Int       @id @default(autoincrement())
+  school_id   Int
+  link         String
+  type         ImageAndVideosType
+  title        String?
+  description  String?
+  date         DateTime?
+  school School  @relation(fields: [school_id], references: [id])
+}
 model FeeStructure {
   id          Int       @id @default(autoincrement())
   school_id   Int
@@ -238,6 +252,7 @@ model School {
   feeStructure       FeeStructure[]
   studentFees        StudentFees[]
   appPayment         AppPayment[]
+  imageAndVideos      ImageAndVideos[]
 }
 
 model BlockedSchool {
