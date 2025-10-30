@@ -82,6 +82,7 @@ model StudentFees {
   class  Classes         @relation(fields: [class_id], references: [id])
   school School          @relation(fields: [school_id], references: [id])
   payments FeePayments[]
+  admin   Admin @relation(fields: [createdBy,school_id], references: [username,school_id])
 }
 
 model FeePayments {
@@ -361,7 +362,7 @@ model Admin {
 
   school School          @relation(fields: [school_id], references: [id])
   user   Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
-
+  studentFees StudentFees[]
   @@unique([username, school_id]) // ✅ username unique within school
   @@unique([mobile, school_id]) // ✅ mobile unique within school
   @@index([school_id])

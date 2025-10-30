@@ -83,7 +83,7 @@ export class StudentFeesService {
   async getStudentFee(username: string, schoolId: number,classId : number) {
     return this.prisma.studentFees.findMany({
       where: { username, school_id: Number(schoolId) ,class_id:Number(classId)},
-      include: { payments: true },
+      include: { payments: true ,admin:true},
     });
   }
 
