@@ -63,6 +63,7 @@ model FeeStructure {
   school School  @relation(fields: [school_id], references: [id])
 
   @@unique([school_id, class_id, title], name: "unique_fee_per_class")
+  studentFees StudentFees[]
 }
 
 model StudentFees {
@@ -78,9 +79,10 @@ model StudentFees {
   createdAt    DateTime?
   remarks              String?
 
-  user   Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
+  user   Student @relation(fields: [username, school_id], references: [username, school_id])
   class  Classes         @relation(fields: [class_id], references: [id])
   school School          @relation(fields: [school_id], references: [id])
+  feeStructure FeeStructure          @relation(fields: [id], references: [id])
   payments FeePayments[]
   admin   Admin @relation(fields: [createdBy,school_id], references: [username,school_id])
 }
@@ -179,7 +181,6 @@ model Attendance_user {
   students    Student[]
   admin       Admin?
   messages    RealTimeMessage[]
-  studentFees StudentFees[]
 
   @@unique([username, school_id]) // usernames unique per school
   @@index([school_id])
@@ -320,6 +321,7 @@ model Student {
   school     School              @relation(fields: [school_id], references: [id])
   user       Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])
   attendance StudentAttendance[]
+  studentFees StudentFees[]
 
   @@unique([username, school_id]) // ✅ student username unique within school
   @@index([school_id])

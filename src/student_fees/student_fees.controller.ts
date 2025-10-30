@@ -77,6 +77,13 @@ export class StudentFeesController {
   ) {
     return this.studentFeesService.getFeesByClass(schoolId, classId);
   }
+@Get('paid_class/:classId')
+  async getPaidFeesByClass(
+    @Param('classId') classId: number,
+    @Query('schoolId') schoolId: number,
+  ) {
+    return this.studentFeesService.getPaidFeesByClass(schoolId, classId);
+  }
 
   /**
    * Update fee status (Admin)

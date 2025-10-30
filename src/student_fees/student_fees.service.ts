@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { StudentFeesStatus } from '@prisma/client'; // ensure you have this enum defined in schema
+import { tr } from 'date-fns/locale';
 
 @Injectable()
 export class StudentFeesService {
@@ -92,11 +93,22 @@ export class StudentFeesService {
    */
   async getFeesByClass(schoolId: number, classId: number) {
     return this.prisma.studentFees.findMany({
-      where: { school_id: schoolId, class_id: classId },
-      include: { payments: true, user: true },
+      where: { school_id: Number(schoolId), class_id: Number(classId) },
+      orderBy:{
+        createdAt:'asc'
+      },
+      include: { payments: true, user: true,admin:true },
     });
   }
-
+ async getPaidFeesByClass(schoolId: number, classId: number) {
+    return this.prisma.studentFees.findMany({
+      where: { school_id: Number(schoolId), class_id: Number(classId) ,status:'PAID',},
+      orderBy:{
+        id:'asc',
+      },
+      include: { payments: true, user: true,admin:true ,feeStructure:true},
+    });
+  }
   /**
    * Update status manually (Admin use)
    */
