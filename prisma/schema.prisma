@@ -41,6 +41,7 @@ enum BusFeesStatus {
 }
 model BusFeePayment {
   id                  Int               @id @default(autoincrement())
+  school_id           Int
   student_id          Int
   bus_fee_structure_id Int
   payment_date        DateTime          @default(now())
@@ -56,10 +57,12 @@ model BusFeePayment {
 
   // Relations
   busFeeStructure     BusFeeStructure   @relation(fields: [bus_fee_structure_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
 }
 
 model BusFeeStructure {
   id            Int       @id @default(autoincrement())
+  school_id           Int
   route         String
   term          String
   amount_month  Float
@@ -73,6 +76,7 @@ model BusFeeStructure {
   updated_at    DateTime  @updatedAt
 
   busFeePayment BusFeePayment[]
+  school School  @relation(fields: [school_id], references: [id])
 }
 
 model ImageAndVideos {
@@ -254,6 +258,8 @@ model School {
   studentFees        StudentFees[]
   appPayment         AppPayment[]
   imageAndVideos      ImageAndVideos[]
+  busFeeStructure     BusFeeStructure[]
+  busFeePayment               BusFeePayment[]
 }
 
 model BlockedSchool {
