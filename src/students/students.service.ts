@@ -49,7 +49,27 @@ async getStudentsWithFlatClassData(schoolId?: string) {
   }
 }
 
+async fetchUniqueRouts(schoolId: number) {
+  try {
+    
 
+    // Use include only, no select at top-level
+    const students = await this.prisma.student.findMany({
+      where: {
+        school_id:schoolId
+      },
+      select:{
+        route:true
+      },
+      distinct:['route']
+      
+    });
+
+  return { status: 'success', routs: students };
+  } catch (error) {
+    return { status: 'error', message: 'Query failed', details: error.message };
+  }
+}
 
 async getCombinedStudentReport(
   schoolId: string,

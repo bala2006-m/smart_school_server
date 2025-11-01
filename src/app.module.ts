@@ -26,7 +26,8 @@ import { AppPaymentModule } from './app-payment/app_payment.module';
 import { StudentsFeesModule } from './student-fees/student-fees.module';
 import { FeePaymentsModule } from './fee-payments/fee-payments.module';
 import { UploadModule } from './upload/upload.module';
-
+import { BusFeePaymentModule } from './bus_fee_payment/bus-fee-payment.module';
+import { BusFeeStructureModule} from './bus_fee_structure/bus-fee-structure.module';
  @Module({
   imports: [
     StudentsModule,
@@ -54,6 +55,8 @@ import { UploadModule } from './upload/upload.module';
          StudentsFeesModule,
          FeePaymentsModule,
          UploadModule,
+         BusFeePaymentModule,
+         BusFeeStructureModule,
   ],
   controllers: [AppController],
   providers: [AppService],

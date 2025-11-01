@@ -19,6 +19,10 @@ export class StudentsController {
   }
 
 
+@Get('fetch_unique_routs')
+  async fetchUniqueRouts(@Query('school_id') schoolId: number) {
+    return this.studentsService.fetchUniqueRouts(schoolId);
+  }
  @Get('school-class')
   async getSchoolAndClass(@Query('username') username: string,@Query('school_id') school_id: number) {
     return this.studentsService.getSchoolAndClassByUsername(username,school_id);
