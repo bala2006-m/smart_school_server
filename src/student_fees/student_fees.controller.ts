@@ -84,7 +84,25 @@ export class StudentFeesController {
   ) {
     return this.studentFeesService.getPaidFeesByClass(schoolId, classId);
   }
-
+@Get('daily_paid/:date')
+  async getDailyPaidFees(
+    @Param('date') date: Date,
+    @Query('schoolId') schoolId: number,
+  ) {
+    
+    
+    return this.studentFeesService.getDailyPaidFees(schoolId, date);
+  }
+  @Get('periodical_paid/:startDate/:endDate')
+  async getPeriodicalPaidFees(
+    @Param('startDate') startDate: Date,
+    @Param('endDate') endDate: Date,
+    @Query('schoolId') schoolId: number,
+  ) {
+    
+    
+    return this.studentFeesService.getPeriodicalPaidFees(schoolId, startDate,endDate);
+  }
   /**
    * Update fee status (Admin)
    */
@@ -97,5 +115,9 @@ export class StudentFeesController {
       body.studentFeeId,
       body.status,
     );
+  }
+@Get('pending')
+  async getPendingFees(@Query('school_id') school_id: number) {
+    return this.studentFeesService.getPendingFeeList(+school_id);
   }
 }

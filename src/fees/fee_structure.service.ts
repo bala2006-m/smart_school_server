@@ -73,6 +73,27 @@ export class FeeStructureService {
       where: { school_id: schoolId, class_id: classId },
     });
   }
+async getFirstFeeStructuresByClassName(schoolId: number, className: string) {
+  const firstClass = await this.prisma.classes.findFirst({
+    where: {
+      school_id: schoolId,
+      class: className,
+    },
+    orderBy: { id: 'asc' },
+  });
+
+  if (!firstClass) return null;
+
+  return this.prisma.feeStructure.findMany({
+    where: {
+      school_id: schoolId,
+      class_id: firstClass.id,
+    },
+    include: {
+      class: true,
+    },
+  });
+}
 
   // ✅ Update status (active/inactive)
   async updateStatus(id: number, status: string) {

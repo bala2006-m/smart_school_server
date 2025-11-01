@@ -50,7 +50,15 @@ export class FeeStructureController {
   ) {
     return this.feeStructureService.getFeeStructuresByClass(schoolId, classId);
   }
-
+ @Get('class_name/:className')
+  async getByClassName(
+    @Param('className') className: string,
+    @Query('schoolId', ParseIntPipe) schoolId: number,
+  ) {
+  
+    
+    return this.feeStructureService.getFirstFeeStructuresByClassName(schoolId, className);
+  }
   // ✅ Update fee status
   @Patch(':id/status')
   async updateStatus(

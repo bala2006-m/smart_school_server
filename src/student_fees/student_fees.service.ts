@@ -109,6 +109,65 @@ export class StudentFeesService {
       include: { payments: true, user: true,admin:true ,feeStructure:true},
     });
   }
+
+ async getDailyPaidFees(schoolId: number, date: Date) {
+  
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return this.prisma.studentFees.findMany({
+    where: {
+      school_id: Number(schoolId),
+      status: 'PAID',
+      createdAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+    orderBy: {
+      class_id: 'asc',
+    },
+    include: {
+      payments: true,
+      user: true,
+      admin: true,
+      feeStructure: true,
+      class:true,
+    },
+  });
+}
+async getPeriodicalPaidFees(schoolId: number, startDate: Date,endDate: Date) {
+  
+  const startOfDay = new Date(startDate);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(endDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return this.prisma.studentFees.findMany({
+    where: {
+      school_id: Number(schoolId),
+      status: 'PAID',
+      createdAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    },
+    orderBy: {
+      class_id: 'asc',
+    },
+    include: {
+      payments: true,
+      user: true,
+      admin: true,
+      feeStructure: true,
+      class:true,
+    },
+  });
+}
   /**
    * Update status manually (Admin use)
    */
@@ -118,4 +177,44 @@ export class StudentFeesService {
       data: { status },
     });
   }
+
+ async getPendingFeeList(schoolId: number) {
+  // 1️⃣ Find all classes in the school that have fee structures
+  const classesWithFees = await this.prisma.classes.findMany({
+    where: {
+      school_id: schoolId,
+      feeStructure: {
+        some: {}, // class has at least one fee structure
+      },
+    },
+    include: {
+      feeStructure: true,
+    },
+  });
+
+  const classIds = classesWithFees.map(c => c.id);
+
+  // 2️⃣ Fetch students who belong to those classes and haven’t paid any fees
+  const pendingStudents = await this.prisma.student.findMany({
+    where: {
+      school_id: schoolId,
+      class_id: { in: classIds },
+      studentFees: {
+        none: {}, // no payments at all
+      },
+    },
+    include: {
+      class: true,
+    },
+  });
+
+  // 3️⃣ Return combined result
+  return {
+    school_id: schoolId,
+    totalPending: pendingStudents.length,
+    students: pendingStudents,
+    feeStructures: classesWithFees.flatMap(c => c.feeStructure),
+  };
+}
+
 }
