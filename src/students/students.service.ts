@@ -56,7 +56,7 @@ async fetchUniqueRouts(schoolId: number) {
     // Use include only, no select at top-level
     const students = await this.prisma.student.findMany({
       where: {
-        school_id:schoolId
+        school_id:Number(schoolId)
       },
       select:{
         route:true
