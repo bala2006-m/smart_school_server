@@ -775,7 +775,7 @@ async updateStudent(
   //const updateData: any = { ...restDto };
 const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name.toUpperCase();
-    if (data.father_name !== undefined) updateData.fathername = data.father_name.toUpperCase();
+    if (data.father_name !== undefined) updateData.father_name = data.father_name.toUpperCase();
     if (data.community !== undefined) updateData.community = data.community.toUpperCase();
     if (data.route !== undefined) updateData.route = data.route.toUpperCase();
     if (data.DOB !== undefined) updateData.DOB = data.DOB;
