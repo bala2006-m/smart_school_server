@@ -70,7 +70,30 @@ async fetchUniqueRouts(schoolId: number) {
     return { status: 'error', message: 'Query failed', details: error.message };
   }
 }
+async fetchStudentsRouts(schoolId: number,classId: number) {
+  try {
+    
 
+    // Use include only, no select at top-level
+    const students = await this.prisma.student.findMany({
+      where: {
+        school_id:Number(schoolId),
+        class_id:Number(classId),
+        route: {
+          not: 'null',
+        },
+      },
+      orderBy: {
+        username: 'asc', 
+      },
+      
+    });
+
+  return { status: 'success', routs: students };
+  } catch (error) {
+    return { status: 'error', message: 'Query failed', details: error.message };
+  }
+}
 async getCombinedStudentReport(
   schoolId: string,
   fromDateInput: string,
