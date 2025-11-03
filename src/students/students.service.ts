@@ -83,6 +83,13 @@ async fetchStudentsRouts(schoolId: number,classId: number) {
           not: 'null',
         },
       },
+      select:{
+id:true,
+username:true,
+name:true,
+route:true,gender:true,mobile:true,class_id:true,school_id:true,father_name:true,
+
+      },
       orderBy: {
         username: 'asc', 
       },
