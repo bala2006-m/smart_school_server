@@ -85,6 +85,8 @@ export class FeeStructureController {
     try {
       return await this.feeStructureService.deleteFeeStructure(id);
     } catch (error) {
+    
+      
       throw new NotFoundException('Fee structure not found');
     }
   }

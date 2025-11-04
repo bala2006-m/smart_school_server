@@ -138,7 +138,11 @@ console.log(status);
 
   // ✅ Delete a fee structure
   async deleteFeeStructure(id: number) {
+    
+    
     const fee = await this.prisma.feeStructure.findUnique({ where: { id } });
+   
+    
     if (!fee) throw new NotFoundException('Fee structure not found');
 
     return this.prisma.feeStructure.delete({ where: { id } });

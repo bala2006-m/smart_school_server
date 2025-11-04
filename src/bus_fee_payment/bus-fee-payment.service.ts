@@ -138,7 +138,22 @@ export class BusFeePaymentService {
     });
     return { status: 'success', payments: data };
   }
+ async findBySchoolAndDate(school_id: number,payment_date:string) {
+  const startOfDay = new Date(payment_date);
+  startOfDay.setHours(0, 0, 0, 0);
 
+  const endOfDay = new Date(payment_date);
+  endOfDay.setHours(23, 59, 59, 999);
+    const data = await this.prisma.busFeePayment.findMany({
+      where: { school_id,payment_date:{
+          gte: startOfDay,
+        lte: endOfDay,
+      }},
+      include: { student: true, busFeeStructure: true, classes: true ,admin:true},
+      orderBy: { created_at: 'desc' },
+    });
+    return { status: 'success', payments: data };
+  }
   // 🟡 FIND BY SCHOOL + CLASS
   async findBySchoolAndClass(school_id: number, class_id: number) {
     const data = await this.prisma.busFeePayment.findMany({

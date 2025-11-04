@@ -44,7 +44,10 @@ export class BusFeePaymentController {
   findBySchool(@Param('schoolId') schoolId: string) {
     return this.service.findBySchool(Number(schoolId));
   }
-
+  @Get('school_date/:schoolId/:date')
+  findBySchoolAndDate(@Param('schoolId') schoolId: string,@Param('date') payment_date: string) {
+    return this.service.findBySchoolAndDate(Number(schoolId),payment_date);
+  }
   // 🟡 Get all payments by school + class
   @Get('school/:schoolId/class/:classId')
   findBySchoolAndClass(
