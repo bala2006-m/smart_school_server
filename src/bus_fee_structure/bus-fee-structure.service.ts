@@ -23,7 +23,7 @@ export class BusFeeStructureService {
 
   async findAll() {
     return await this.prisma.busFeeStructure.findMany({
-      include: { busFeePayment: true, school: true },
+      include: { busFeePayment: true, },
       orderBy: { created_at: 'desc' },
     });
   }
@@ -31,7 +31,7 @@ export class BusFeeStructureService {
   async findOne(id: number) {
     const record = await this.prisma.busFeeStructure.findUnique({
       where: { id },
-      include: { busFeePayment: true, school: true },
+      include: { busFeePayment: true, },
     });
     if (!record) {
       throw new NotFoundException(`Bus Fee Structure with ID ${id} not found`);
@@ -67,7 +67,7 @@ export class BusFeeStructureService {
   async findBySchool(schoolId: number) {
     const data = await this.prisma.busFeeStructure.findMany({
       where: { school_id: schoolId },
-      include: { busFeePayment: true, school: true },
+      include: { busFeePayment: true, },
       orderBy: { created_at: 'desc' },
     });
 
@@ -77,6 +77,27 @@ export class BusFeeStructureService {
 
     return data;
   }
+ async findBySchoolClass(schoolId: number, classId: number) {
+  const data = await this.prisma.busFeeStructure.findMany({
+    where: { 
+      school_id: schoolId,
+      busFeePayment: {
+        some: {
+          class_id: classId
+        }
+      }
+    },
+    include: { busFeePayment: true },
+    orderBy: { created_at: 'asc' },
+  });
+
+  if (!data || data.length === 0) {
+    throw new NotFoundException(`No Bus Fee Structures found for school ID ${schoolId} and class ID ${classId}`);
+  }
+
+  return data;
+}
+
 
  async findBySchoolRoute(schoolId: number, route: string) {
   const data = await this.prisma.busFeeStructure.findMany({
@@ -89,7 +110,7 @@ export class BusFeeStructureService {
     },
     include: {
       busFeePayment: true,
-    
+
     },
     orderBy: { created_at: 'desc' },
   });
