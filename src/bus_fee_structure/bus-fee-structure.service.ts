@@ -124,6 +124,52 @@ export class BusFeeStructureService {
   return data;
 }
 
+async findByOnlySchoolRoute(schoolId: number, route: string) {
+  const data = await this.prisma.busFeeStructure.findMany({
+    where: {
+      AND: [
+        { school_id: Number(schoolId) },
+        { route: route },
+        {status:'active'},
+      ],
+    },
+    orderBy: { created_at: 'desc' },
+  });
+
+  if (!data || data.length === 0) {
+    throw new NotFoundException(
+      `No Bus Fee Structures found for school ID ${schoolId} and route "${route}".`,
+    );
+  }
+
+  return data;
+}
+async findBySchoolRouteUsername(schoolId: number, route: string, username: string) {
+  const data = await this.prisma.busFeeStructure.findMany({
+    where: {
+      school_id: Number(schoolId),
+      route: route,
+      status: 'active',
+    },
+    include: {
+      busFeePayment: {
+        where: {
+          student_id: username, // Include only this student's payments
+        },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+  });
+
+  if (!data || data.length === 0) {
+    throw new NotFoundException(
+      `No Bus Fee Structures found for school ID ${schoolId} and route "${route}".`,
+    );
+  }
+
+  return data;
+}
+
 
   async toggleStatus(id: number, status: string, updated_by: string) {
   const existing = await this.prisma.busFeeStructure.findUnique({

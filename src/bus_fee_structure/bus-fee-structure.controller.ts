@@ -50,11 +50,20 @@ export class BusFeeStructureController {
     return this.service.findBySchoolClass(Number(schoolId),Number(classId));
   }
   @Get('route/:schoolId/:route')
-  @ApiOperation({ summary: 'Get all bus fee structures for a specific school' })
+  @ApiOperation({ summary: 'Get all bus fee structures for a specific school route' })
   findBySchoolRoute(@Param('schoolId') schoolId: string,@Param('route') route: string) {
     return this.service.findBySchoolRoute(Number(schoolId),route);
   }
-
+   @Get('only_route/:schoolId/:route')
+  @ApiOperation({ summary: 'Get all bus fee structures for a specific school route' })
+  findBySchoolOnlyRoute(@Param('schoolId') schoolId: string,@Param('route') route: string) {
+    return this.service.findByOnlySchoolRoute(Number(schoolId),route);
+  }
+ @Get('route_username/:schoolId/:route/:username')
+  @ApiOperation({ summary: 'Get all bus fee structures for a specific school route username' })
+  findBySchoolRouteUsername(@Param('schoolId') schoolId: string,@Param('route') route: string,@Param('username') username: string) {
+    return this.service.findBySchoolRouteUsername(Number(schoolId),route,username);
+  }
   @Get(':id')
   @ApiOperation({ summary: 'Get a bus fee structure by ID' })
   findOne(@Param('id') id: string) {
