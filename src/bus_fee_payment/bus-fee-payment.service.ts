@@ -158,8 +158,27 @@ export class BusFeePaymentService {
   async findBySchoolAndClass(school_id: number, class_id: number) {
     const data = await this.prisma.busFeePayment.findMany({
       where: { school_id, class_id },
-      include: {// student: true,
-         busFeeStructure: true,admin:true },
+      select:{
+        id: true,school_id: true,class_id: true,bus_fee_structure_id: true,
+        payment_date: true,amount_paid: true,payment_mode: true,status: true,created_by: true,created_at: true,updated_by: true,updated_at: true,
+        busFeeStructure:{
+          select:{
+            id: true,
+            route: true,
+            term: true,
+            total_amount: true,
+            status: true,
+
+          }
+        },
+        admin:{
+          select:{
+            name: true,designation: true,username: true,
+          }
+        }
+      },
+      // include: {// student: true,
+      //    busFeeStructure: true,admin:true },
       orderBy: { created_at: 'desc' },
     });
     return { status: 'success', payments: data };

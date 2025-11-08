@@ -5,15 +5,15 @@ import { tr } from 'date-fns/locale';
 
 @Injectable()
 export class StudentFeesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Assign fee record to a student based on class and school.
    * This pulls FeeStructure, sums up the total, and stores snapshot.
    */
-  async assignStudentFees(schoolId: number, classId: number, username: string, id: number,createdBy:string) {
+  async assignStudentFees(schoolId: number, classId: number, username: string, id: number, createdBy: string) {
     const structures = await this.prisma.feeStructure.findMany({
-      where: { school_id: schoolId, class_id: classId, status: 'active',id },
+      where: { school_id: schoolId, class_id: classId, status: 'active', id },
     });
 
     if (!structures.length) {
@@ -24,13 +24,13 @@ export class StudentFeesService {
 
     return this.prisma.studentFees.create({
       data: {
-        id:id,
+        id: id,
         school_id: schoolId,
         class_id: classId,
         username,
         total_amount: total,
         paid_amount: 0,
-      createdBy:createdBy,
+        createdBy: createdBy,
         status: StudentFeesStatus.PENDING,
       },
     });
@@ -42,7 +42,7 @@ export class StudentFeesService {
    */
   async recordPayment(studentFeeId: number, amount: number, method: string, transactionId?: string) {
     const studentFee = await this.prisma.studentFees.findUnique({
-      where: { aId : studentFeeId },
+      where: { aId: studentFeeId },
     });
 
     if (!studentFee) throw new NotFoundException('Student fee record not found');
@@ -62,8 +62,8 @@ export class StudentFeesService {
       newPaid >= studentFee.total_amount
         ? StudentFeesStatus.PAID
         : newPaid > 0
-        ? StudentFeesStatus.PARTIALLY_PAID
-        : StudentFeesStatus.PENDING;
+          ? StudentFeesStatus.PARTIALLY_PAID
+          : StudentFeesStatus.PENDING;
 
     // Update the student fee progress
     await this.prisma.studentFees.update({
@@ -71,7 +71,7 @@ export class StudentFeesService {
       data: {
         paid_amount: newPaid,
         status,
-      
+
       },
     });
 
@@ -81,10 +81,10 @@ export class StudentFeesService {
   /**
    * Get fee summary for a student
    */
-  async getStudentFee(username: string, schoolId: number,classId : number) {
+  async getStudentFee(username: string, schoolId: number, classId: number) {
     return this.prisma.studentFees.findMany({
-      where: { username, school_id: Number(schoolId) ,class_id:Number(classId)},
-      include: { payments: true ,admin:true},
+      where: { username, school_id: Number(schoolId), class_id: Number(classId) },
+      include: { payments: true, admin: true },
     });
   }
 
@@ -94,80 +94,140 @@ export class StudentFeesService {
   async getFeesByClass(schoolId: number, classId: number) {
     return this.prisma.studentFees.findMany({
       where: { school_id: Number(schoolId), class_id: Number(classId) },
-      orderBy:{
-        createdAt:'asc'
+      orderBy: {
+        createdAt: 'asc'
       },
-      include: { payments: true, user: true,admin:true },
+      include: {
+        payments: true, user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            gender: true,
+            email: true,
+            mobile: true,
+            class_id: true,
+            school_id: true,
+            route: true,
+          }
+        }, admin: true
+      },
     });
   }
- async getPaidFeesByClass(schoolId: number, classId: number) {
+  async getPaidFeesByClass(schoolId: number, classId: number) {
     return this.prisma.studentFees.findMany({
-      where: { school_id: Number(schoolId), class_id: Number(classId) ,status:'PAID',},
-      orderBy:{
-        id:'asc',
+      where: {
+        school_id: Number(schoolId), class_id: Number(classId), status: {
+          in: ['PAID', 'PARTIALLY_PAID']
+        },
       },
-      include: { payments: true, user: true,admin:true ,feeStructure:true},
+      orderBy: {
+        id: 'asc',
+      },
+      include: {
+        payments: true, user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            gender: true,
+            email: true,
+            mobile: true,
+            class_id: true,
+            school_id: true,
+            route: true,
+          }
+        }, admin: true, feeStructure: true
+      },
     });
   }
 
- async getDailyPaidFees(schoolId: number, date: Date) {
-  
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
+  async getDailyPaidFees(schoolId: number, date: Date) {
 
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
 
-  return this.prisma.studentFees.findMany({
-    where: {
-      school_id: Number(schoolId),
-      status: 'PAID',
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.prisma.studentFees.findMany({
+      where: {
+        school_id: Number(schoolId),
+        status: {
+          in: ['PAID', 'PARTIALLY_PAID']
+        },
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
-    },
-    orderBy: {
-      class_id: 'asc',
-    },
-    include: {
-      payments: true,
-      user: true,
-      admin: true,
-      feeStructure: true,
-      class:true,
-    },
-  });
-}
-async getPeriodicalPaidFees(schoolId: number, startDate: Date,endDate: Date) {
-  
-  const startOfDay = new Date(startDate);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(endDate);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  return this.prisma.studentFees.findMany({
-    where: {
-      school_id: Number(schoolId),
-      status: 'PAID',
-      createdAt: {
-        gte: startOfDay,
-        lte: endOfDay,
+      orderBy: {
+        class_id: 'asc',
       },
-    },
-    orderBy: {
-      class_id: 'asc',
-    },
-    include: {
-      payments: true,
-      user: true,
-      admin: true,
-      feeStructure: true,
-      class:true,
-    },
-  });
-}
+      include: {
+        payments: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            gender: true,
+            email: true,
+            mobile: true,
+            class_id: true,
+            school_id: true,
+            route: true,
+          }
+        },
+        admin: true,
+        feeStructure: true,
+        class: true,
+      },
+    });
+  }
+  async getPeriodicalPaidFees(schoolId: number, startDate: Date, endDate: Date) {
+
+    const startOfDay = new Date(startDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.prisma.studentFees.findMany({
+      where: {
+        school_id: Number(schoolId),
+        status: {
+          in: ['PAID', 'PARTIALLY_PAID']
+        },
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      orderBy: {
+        class_id: 'asc',
+      },
+      include: {
+        payments: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            gender: true,
+            email: true,
+            mobile: true,
+            class_id: true,
+            school_id: true,
+            route: true,
+          }
+        },
+        admin: true,
+        feeStructure: true,
+        class: true,
+      },
+    });
+  }
   /**
    * Update status manually (Admin use)
    */
@@ -192,23 +252,72 @@ async getPeriodicalPaidFees(schoolId: number, startDate: Date,endDate: Date) {
     },
   });
 
-  const classIds = classesWithFees.map(c => c.id);
+  // Map to hold classId => array of feeStructure ids for quick lookup
+  const classFeeMap = new Map<number, number[]>();
+  classesWithFees.forEach(cls => {
+    classFeeMap.set(cls.id, cls.feeStructure.map(f => f.id));
+  });
 
-  // 2️⃣ Fetch students who belong to those classes and haven’t paid any fees
-  const pendingStudents = await this.prisma.student.findMany({
+  const classIds = [...classFeeMap.keys()];
+
+  // 2️⃣ Fetch all students of these classes with their studentFees and class info
+  const students = await this.prisma.student.findMany({
     where: {
       school_id: schoolId,
       class_id: { in: classIds },
-      studentFees: {
-        none: {}, // no payments at all
-      },
     },
-    include: {
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      mobile: true,
+      class_id: true,
+      father_name: true,
+      route: true,
       class: true,
+      studentFees: {
+        include: {
+          feeStructure: {
+            select: {
+              id: true,
+              school_id: true,
+              class_id: true,
+              title: true,
+              descriptions: true,
+              amounts: true,
+              total_amount: true,
+              status: true,
+            },
+          },
+          payments: true,
+        },
+      },
     },
   });
 
-  // 3️⃣ Return combined result
+  // 3️⃣ Filter students who have pending fees
+  const pendingStudents = students.filter(student => {
+    const feesForClass = classFeeMap.get(student.class_id) || [];
+
+    // Use feeStructure.id from studentFee to map with feesForClass
+    const studentFeeStructureIds = student.studentFees.map(sf => sf.feeStructure.id);
+
+    // Check if any fee is PARTIALLY_PAID => include
+    if (student.studentFees.some(sf => sf.status === 'PARTIALLY_PAID')) {
+      return true;
+    }
+
+    // Check if student is missing any feeStructure in their studentFees => include
+    const missingFees = feesForClass.some(feeId => !studentFeeStructureIds.includes(feeId));
+    if (missingFees) {
+      return true;
+    }
+
+    // If none partial and no missing fee => exclude (fully paid)
+    return false;
+  });
+
+  // 4️⃣ Return combined result
   return {
     school_id: schoolId,
     totalPending: pendingStudents.length,
@@ -216,5 +325,7 @@ async getPeriodicalPaidFees(schoolId: number, startDate: Date,endDate: Date) {
     feeStructures: classesWithFees.flatMap(c => c.feeStructure),
   };
 }
+
+
 
 }
