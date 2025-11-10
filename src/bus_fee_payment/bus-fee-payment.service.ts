@@ -5,7 +5,7 @@ import { tr } from 'date-fns/locale';
 
 @Injectable()
 export class BusFeePaymentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // 🟢 CREATE PAYMENT
   async create(data: any) {
@@ -133,23 +133,149 @@ export class BusFeePaymentService {
   async findBySchool(school_id: number) {
     const data = await this.prisma.busFeePayment.findMany({
       where: { school_id },
-      include: { student: true, busFeeStructure: true, classes: true ,admin:true},
+      include: { student: true, busFeeStructure: true, classes: true, admin: true },
       orderBy: { created_at: 'desc' },
     });
     return { status: 'success', payments: data };
   }
- async findBySchoolAndDate(school_id: number,payment_date:string) {
-  const startOfDay = new Date(payment_date);
-  startOfDay.setHours(0, 0, 0, 0);
 
-  const endOfDay = new Date(payment_date);
-  endOfDay.setHours(23, 59, 59, 999);
+
+ async findPendingPaidBySchool(school_id: number) {
+  // 1️⃣ Get all active bus fee structures
+  const totalBusFees = await this.prisma.busFeeStructure.findMany({
+    where: { school_id, status: 'active' },
+    select: {
+      id: true,
+      route: true,
+      term: true,
+      total_amount: true,
+    },
+  });
+
+  // 2️⃣ Initialize data holders
+  const allStudents: Record<string, any[]> = {};
+  const totalStudents: Record<string, number> = {};
+  const paidStudents: Record<string, any[]> = {};
+  const pendingStudents: Record<string, any[]> = {};
+  const paidAmounts: Record<string, number> = {};
+  const pendingAmounts: Record<string, number> = {};
+
+  // 3️⃣ Loop through each bus fee route
+  for (const busFee of totalBusFees) {
+    const students = await this.prisma.student.findMany({
+      where: {
+        school_id,
+        route: busFee.route,
+      },
+      select: {
+        username: true,
+        name: true,
+        class_id: true,
+        mobile: true,
+      },
+    });
+
+    allStudents[busFee.route] = students;
+    totalStudents[busFee.route] = students.length;
+    paidStudents[busFee.route] = [];
+    pendingStudents[busFee.route] = [];
+    paidAmounts[busFee.route] = 0;
+    pendingAmounts[busFee.route] = 0;
+
+    for (const student of students) {
+      const paidPayments = await this.prisma.busFeePayment.findMany({
+        where: {
+          bus_fee_structure_id: busFee.id,
+          student_id: student.username,
+          status: { in: ['PAID', 'PARTIALLY_PAID'] },
+        },
+        select: {
+          amount_paid: true,
+        },
+      });
+
+      const totalPaidAmount = paidPayments.reduce(
+        (sum, p) => sum + Number(p.amount_paid || 0),
+        0
+      );
+
+      // 🟢 Fully paid
+      if (totalPaidAmount >= Number(busFee.total_amount)) {
+        paidStudents[busFee.route].push({
+          ...student,
+          totalPaidAmount,
+          status: 'PAID',
+        });
+        paidAmounts[busFee.route] += totalPaidAmount;
+      } else {
+        // 🔴 Pending
+        pendingStudents[busFee.route].push({
+          ...student,
+          totalPaidAmount,
+          pendingAmount: Number(busFee.total_amount) - totalPaidAmount,
+          status: totalPaidAmount > 0 ? 'PARTIALLY_PAID' : 'UNPAID',
+        });
+        paidAmounts[busFee.route] += totalPaidAmount;
+        pendingAmounts[busFee.route] +=
+          Number(busFee.total_amount) - totalPaidAmount;
+      }
+    }
+  }
+
+  // 4️⃣ Totals across all routes
+  const totalPaidAmount = Object.values(paidAmounts).reduce(
+    (sum, a) => sum + a,
+    0
+  );
+  const totalPendingAmount = Object.values(pendingAmounts).reduce(
+    (sum, a) => sum + a,
+    0
+  );
+
+  const totalPaidStudents = Object.values(paidStudents).reduce(
+    (sum, arr) => sum + arr.length,
+    0
+  );
+  const totalPendingStudents = Object.values(pendingStudents).reduce(
+    (sum, arr) => sum + arr.length,
+    0
+  );
+
+  // 5️⃣ Return
+  return {
+  //  busFees: totalBusFees,
+    totalBusFees: totalBusFees.length,
+   // allStudents,
+   
+   // paidStudents,
+   // pendingStudents,
+   // paidAmounts,
+   // pendingAmounts,
+    totalPaidAmount,
+    totalPendingAmount,
+    totalAmount:Number(totalPaidAmount)+Number(totalPendingAmount),
+    totalPaidStudents,
+    totalPendingStudents,
+     totalStudents:Number(totalPendingStudents)+Number(totalPaidStudents),
+  };
+}
+
+
+
+  async findBySchoolAndDate(school_id: number, payment_date: string) {
+    const startOfDay = new Date(payment_date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(payment_date);
+    endOfDay.setHours(23, 59, 59, 999);
     const data = await this.prisma.busFeePayment.findMany({
-      where: { school_id,payment_date:{
+      where: {
+        school_id, payment_date: {
           gte: startOfDay,
-        lte: endOfDay,
-      }},
-      include: { student: true, busFeeStructure: true, classes: true ,admin:true},
+          lte: endOfDay,
+        }
+      },
+      include: { student: true, busFeeStructure: true, classes: true, admin: true },
       orderBy: { created_at: 'desc' },
     });
     return { status: 'success', payments: data };
@@ -158,11 +284,11 @@ export class BusFeePaymentService {
   async findBySchoolAndClass(school_id: number, class_id: number) {
     const data = await this.prisma.busFeePayment.findMany({
       where: { school_id, class_id },
-      select:{
-        id: true,school_id: true,class_id: true,bus_fee_structure_id: true,
-        payment_date: true,amount_paid: true,payment_mode: true,status: true,created_by: true,created_at: true,updated_by: true,updated_at: true,
-        busFeeStructure:{
-          select:{
+      select: {
+        id: true, school_id: true, class_id: true, bus_fee_structure_id: true,
+        payment_date: true, amount_paid: true, payment_mode: true, status: true, created_by: true, created_at: true, updated_by: true, updated_at: true,
+        busFeeStructure: {
+          select: {
             id: true,
             route: true,
             term: true,
@@ -171,9 +297,9 @@ export class BusFeePaymentService {
 
           }
         },
-        admin:{
-          select:{
-            name: true,designation: true,username: true,
+        admin: {
+          select: {
+            name: true, designation: true, username: true,
           }
         }
       },
@@ -192,7 +318,7 @@ export class BusFeePaymentService {
   ) {
     const data = await this.prisma.busFeePayment.findMany({
       where: { school_id, class_id, student_id },
-      include: { student: true, busFeeStructure: true, classes: true,admin:true },
+      include: { student: true, busFeeStructure: true, classes: true, admin: true },
       orderBy: { created_at: 'desc' },
     });
     return { status: 'success', payments: data };

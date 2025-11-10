@@ -70,4 +70,9 @@ export class BusFeePaymentController {
       studentId,
     );
   }
+
+   @Get('pending_paid_school/:schoolId')
+  findPendingPaidBySchool(@Param('schoolId') schoolId: string) {
+    return this.service.findPendingPaidBySchool(Number(schoolId));
+  }
 }

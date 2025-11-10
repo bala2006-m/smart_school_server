@@ -34,9 +34,6 @@ export class StudentFeesController {
     );
   }
 
-  /**
-   * Record a student payment
-   */
   @Post('pay')
   async recordPayment(
     @Body()
@@ -120,4 +117,16 @@ export class StudentFeesController {
   async getPendingFees(@Query('school_id') school_id: number) {
     return this.studentFeesService.getPendingFeeList(+school_id);
   }
+  @Get('count_pending')
+  async getCountPendingFees(@Query('school_id') school_id: number) {
+    return this.studentFeesService.getCountPendingFees(+school_id);
+  }
+
+  @Get('pending_paid_school/:schoolId')
+  async getPaidFeesBySchool(
+    @Param('schoolId') schoolId: number,
+  ) {
+    return this.studentFeesService.getPaidFeesBySchool(schoolId);
+  }
+  
 }

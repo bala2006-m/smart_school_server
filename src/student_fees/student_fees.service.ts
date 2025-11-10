@@ -7,10 +7,6 @@ import { tr } from 'date-fns/locale';
 export class StudentFeesService {
   constructor(private readonly prisma: PrismaService) { }
 
-  /**
-   * Assign fee record to a student based on class and school.
-   * This pulls FeeStructure, sums up the total, and stores snapshot.
-   */
   async assignStudentFees(schoolId: number, classId: number, username: string, id: number, createdBy: string) {
     const structures = await this.prisma.feeStructure.findMany({
       where: { school_id: schoolId, class_id: classId, status: 'active', id },
@@ -36,10 +32,6 @@ export class StudentFeesService {
     });
   }
 
-  /**
-   * Record a fee payment for a student.
-   * Automatically updates total paid and fee status.
-   */
   async recordPayment(studentFeeId: number, amount: number, method: string, transactionId?: string) {
     const studentFee = await this.prisma.studentFees.findUnique({
       where: { aId: studentFeeId },
@@ -78,9 +70,6 @@ export class StudentFeesService {
     return payment;
   }
 
-  /**
-   * Get fee summary for a student
-   */
   async getStudentFee(username: string, schoolId: number, classId: number) {
     return this.prisma.studentFees.findMany({
       where: { username, school_id: Number(schoolId), class_id: Number(classId) },
@@ -88,9 +77,6 @@ export class StudentFeesService {
     });
   }
 
-  /**
-   * Get all students’ fee info by class
-   */
   async getFeesByClass(schoolId: number, classId: number) {
     return this.prisma.studentFees.findMany({
       where: { school_id: Number(schoolId), class_id: Number(classId) },
@@ -141,6 +127,166 @@ export class StudentFeesService {
       },
     });
   }
+
+async getPaidFeesBySchool(schoolId: number) {
+  // 1️⃣ Get active classes
+  const feeClasses = await this.prisma.feeStructure.findMany({
+    where: {
+      school_id: Number(schoolId),
+      status: 'active',
+    },
+    distinct: ['class_id'],
+    select: {
+      class_id: true,
+    },
+  });
+
+  
+  // 2️⃣ Count total students per class
+  const classStudent = {};
+  for (const cls of feeClasses) {
+    const classStu = await this.prisma.student.findMany({
+      where: {
+        school_id: Number(schoolId),
+        class_id: cls.class_id,
+      },
+      select: { id: true },
+    });
+    classStudent[cls.class_id] = classStu.length;
+  }
+
+  // 3️⃣ Get all active fee structures
+  const allFees = await this.prisma.feeStructure.findMany({
+    where: {
+      school_id: Number(schoolId),
+      status: 'active',
+    },
+    orderBy: {
+      class_id: 'asc',
+    },
+    select: {
+      id: true,
+      class_id: true,
+      total_amount: true,
+    },
+  });
+
+  // 4️⃣ Find students who paid ALL fees in their class + compute amounts
+  const classPaidStudent = {};
+  const classPaidAmount = {};
+  const classPendingAmount = {};
+
+  for (const cls of feeClasses) {
+    const classId = cls.class_id;
+
+    // Get all fee IDs for this class
+    const classFees = allFees.filter(f => f.class_id === classId);
+    const feeIds = classFees.map(f => f.id);
+    const totalClassFeeAmount = classFees.reduce((sum, f) => sum + Number(f.total_amount || 0), 0);
+
+    if (feeIds.length === 0) continue;
+
+    // Find students in this class
+    const students = await this.prisma.student.findMany({
+      where: {
+        school_id: Number(schoolId),
+        class_id: classId,
+      },
+      select: { username: true },
+    });
+
+    const paidStudentIds: number[] = [];
+    let paidAmount = 0;
+
+    for (const stu of students) {
+      const paidFees = await this.prisma.studentFees.findMany({
+        where: {
+          username: stu.username.toString(),
+          class_id: classId,
+          school_id: Number(schoolId),
+          status: 'PAID',
+        },
+        select: {
+          feeStructure: {
+            select: {
+              id: true,
+              total_amount: true,
+            },
+          },
+        },
+      });
+
+      const paidFeeIds = paidFees.map(p => p.feeStructure.id);
+      const hasPaidAll = feeIds.every(feeId => paidFeeIds.includes(feeId));
+
+      // Sum paid fees for this student
+      const studentPaidAmount = paidFees.reduce(
+        (sum, p) => sum + Number(p.feeStructure.total_amount || 0),
+        0
+      );
+
+      paidAmount += studentPaidAmount;
+
+      if (hasPaidAll) {
+        paidStudentIds.push(Number(stu.username));
+      }
+    }
+
+    classPaidStudent[classId] = paidStudentIds.length;
+    classPaidAmount[classId] = paidAmount;
+    const totalStudents = classStudent[classId] || 0;
+    classPendingAmount[classId] = (totalStudents * totalClassFeeAmount) - paidAmount;
+  }
+
+  // 5️⃣ Pending students
+  const pendingStudents = {};
+  for (const cls of feeClasses) {
+    const classId = cls.class_id;
+    const total = classStudent[classId] || 0;
+    const paid = classPaidStudent[classId] || 0;
+    pendingStudents[classId] = total - paid;
+  }
+
+  // 6️⃣ Totals
+  let totalClassStudent = 0;
+  let totalPaidStudent = 0;
+  let totalPendingStudent = 0;
+  let totalPaidAmount = 0;
+  let totalPendingAmount = 0;
+
+  for (const cls of feeClasses) {
+    const classId = cls.class_id;
+    totalClassStudent += Number(classStudent[classId] || 0);
+    totalPaidStudent += Number(classPaidStudent[classId] || 0);
+    totalPendingStudent += Number(pendingStudents[classId] || 0);
+    totalPaidAmount += Number(classPaidAmount[classId] || 0);
+    totalPendingAmount += Number(classPendingAmount[classId] || 0);
+  }
+
+  // 7️⃣ Return final data
+  return {
+    totalClasses: feeClasses.length,
+    classStudent,
+    totalClassStudent,
+    allFees: allFees.length,
+    PaidStudents: classPaidStudent,
+    totalPaidStudent,
+    pendingStudents,
+    totalPendingStudent,
+    classPaidAmount,
+    classPendingAmount,
+    totalPaidAmount,
+    totalPendingAmount,
+    totalAmount:totalPaidAmount+totalPendingAmount
+  };
+}
+
+
+
+//{"totalClasses":3,"classStudent":{"29":7,"32":2,"33":2},"totalClassStudent":null,"allFees":7,"PaidStudents":{"29":2,"32":2,"33":2},"totalPaidStudent":null,"pendingStudents":{"29":5,"32":0,"33":0},"totalPendingStudent":null}
+
+
+
 
   async getDailyPaidFees(schoolId: number, date: Date) {
 
@@ -326,6 +472,92 @@ export class StudentFeesService {
   };
 }
 
+async getCountPendingFees(schoolId: number) {
+  // 1️⃣ Find all classes in the school that have fee structures
+  const classesWithFees = await this.prisma.classes.findMany({
+    where: {
+      school_id: schoolId,
+      feeStructure: {
+        some: {}, // class has at least one fee structure
+      },
+    },
+    include: {
+      feeStructure: true,
+    },
+  });
 
+  // Map to hold classId => array of feeStructure ids for quick lookup
+  const classFeeMap = new Map<number, number[]>();
+  classesWithFees.forEach(cls => {
+    classFeeMap.set(cls.id, cls.feeStructure.map(f => f.id));
+  });
+
+  const classIds = [...classFeeMap.keys()];
+
+  // 2️⃣ Fetch all students of these classes with their studentFees and class info
+  const students = await this.prisma.student.findMany({
+    where: {
+      school_id: schoolId,
+      class_id: { in: classIds },
+    },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      mobile: true,
+      class_id: true,
+      father_name: true,
+      route: true,
+      class: true,
+      studentFees: {
+        include: {
+          feeStructure: {
+            select: {
+              id: true,
+              school_id: true,
+              class_id: true,
+              title: true,
+              descriptions: true,
+              amounts: true,
+              total_amount: true,
+              status: true,
+            },
+          },
+          payments: true,
+        },
+      },
+    },
+  });
+
+  // 3️⃣ Filter students who have pending fees
+  const pendingStudents = students.filter(student => {
+    const feesForClass = classFeeMap.get(student.class_id) || [];
+
+    // Use feeStructure.id from studentFee to map with feesForClass
+    const studentFeeStructureIds = student.studentFees.map(sf => sf.feeStructure.id);
+
+    // Check if any fee is PARTIALLY_PAID => include
+    if (student.studentFees.some(sf => sf.status === 'PARTIALLY_PAID')) {
+      return true;
+    }
+
+    // Check if student is missing any feeStructure in their studentFees => include
+    const missingFees = feesForClass.some(feeId => !studentFeeStructureIds.includes(feeId));
+    if (missingFees) {
+      return true;
+    }
+
+    // If none partial and no missing fee => exclude (fully paid)
+    return false;
+  });
+
+  // 4️⃣ Return combined result
+  return {
+    school_id: schoolId,
+    totalPending: pendingStudents.length,
+   // students: pendingStudents.length,
+   feeStructures: classesWithFees.flatMap(c => c.feeStructure).length,
+  };
+}
 
 }
