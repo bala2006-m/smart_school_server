@@ -233,6 +233,8 @@ private mapRowToDto(values: any[], table: string): RegisterDesignationDto {
         community:values[9]?.toString()?.trim() ?? '',
         father_name:values[10]?.toString()?.trim() ?? '',
         route:values[11]?.toString()?.trim() ?? '',
+        address:values[12]?.toString()?.trim() ?? '',
+        date_of_join:values[13]?.toString()?.trim() ?? '',
         role: '',
         designation: '',
         table,

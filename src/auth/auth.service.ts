@@ -205,7 +205,9 @@ export class AuthService {
       DOB,
       community,
       father_name,
-      route
+      route,
+      address,
+      date_of_join
     } = dto;
 
 
@@ -355,10 +357,13 @@ const classes = await this.prisma.classes.findUnique({
             photo: null,
             school_id: schoolIdInt,
             class_id: Number(classIdInt),
-            DOB:new Date(Date.now()),
+            DOB:new Date(DOB),
             community,
             father_name,
-            route
+            route,
+            address,
+            date_of_join:new Date(date_of_join),
+
           },
         });
       },

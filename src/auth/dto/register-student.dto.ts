@@ -50,5 +50,14 @@ export class RegisterStudentDto {
   @IsNotEmpty()
   dob: string;
 
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+
+  @IsString()
+  @IsNotEmpty()
+  date_of_join: string;
+
   
 }
