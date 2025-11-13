@@ -4,8 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { log } from 'console';
-import { tr } from 'date-fns/locale';
+
 @Injectable()
 export class StudentsService {
   constructor(private prisma: PrismaService) { }
@@ -281,6 +280,8 @@ export class StudentsService {
           father_name: true,
           DOB: true,
           route: true,
+          address:true,
+          date_of_join:true,
           class: {
             select: {
               id: true,
