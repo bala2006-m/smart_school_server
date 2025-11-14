@@ -360,7 +360,7 @@ const classes = await this.prisma.classes.findUnique({
             DOB:new Date(DOB),
             community:community.toUpperCase(),
             father_name:father_name.toUpperCase(),
-            route:route.toUpperCase(),
+            route,
             address:address.toUpperCase(),
             date_of_join:new Date(date_of_join),
 
