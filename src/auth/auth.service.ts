@@ -350,7 +350,7 @@ const classes = await this.prisma.classes.findUnique({
         return await this.prisma.student.create({
           data: {
             username,
-            name,
+            name:name.toUpperCase(),
             gender: gender as any,
             mobile,
             email,
@@ -358,10 +358,10 @@ const classes = await this.prisma.classes.findUnique({
             school_id: schoolIdInt,
             class_id: Number(classIdInt),
             DOB:new Date(DOB),
-            community,
-            father_name,
-            route,
-            address,
+            community:community.toUpperCase(),
+            father_name:father_name.toUpperCase(),
+            route:route.toUpperCase(),
+            address:address.toUpperCase(),
             date_of_join:new Date(date_of_join),
 
           },
