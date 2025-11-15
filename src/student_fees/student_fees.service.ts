@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { StudentFeesStatus } from '@prisma/client'; // ensure you have this enum defined in schema
 import { tr } from 'date-fns/locale';
+import { join } from 'path';
 
 @Injectable()
 export class StudentFeesService {
@@ -141,7 +142,6 @@ async getPaidFeesBySchool(schoolId: number) {
     },
   });
 
-  
   // 2️⃣ Count total students per class
   const classStudent = {};
   for (const cls of feeClasses) {
@@ -199,6 +199,7 @@ async getPaidFeesBySchool(schoolId: number) {
     let paidAmount = 0;
 
     for (const stu of students) {
+      // Fully paid fees
       const paidFees = await this.prisma.studentFees.findMany({
         where: {
           username: stu.username.toString(),
@@ -216,16 +217,43 @@ async getPaidFeesBySchool(schoolId: number) {
         },
       });
 
-      const paidFeeIds = paidFees.map(p => p.feeStructure.id);
-      const hasPaidAll = feeIds.every(feeId => paidFeeIds.includes(feeId));
+      // Partially paid fees
+      const partiallyPaidFees = await this.prisma.studentFees.findMany({
+        where: {
+          username: stu.username.toString(),
+          class_id: classId,
+          school_id: Number(schoolId),
+          status: 'PARTIALLY_PAID',
+        },
+        select: {
+          paid_amount: true,
+          feeStructure: {
+            select: {
+              id: true,
+              total_amount: true,
+            },
+          },
+        },
+      });
 
-      // Sum paid fees for this student
-      const studentPaidAmount = paidFees.reduce(
+      // Sum fully paid amounts
+      const fullyPaidSum = paidFees.reduce(
         (sum, p) => sum + Number(p.feeStructure.total_amount || 0),
         0
       );
 
-      paidAmount += studentPaidAmount;
+      // Sum partially paid amounts
+      const partialPaidSum = partiallyPaidFees.reduce(
+        (sum, p) => sum + Number(p.paid_amount || 0),
+        0
+      );
+
+      // Add both to total paid amount for this class
+      paidAmount += fullyPaidSum + partialPaidSum;
+
+      // Check if student paid all fees
+      const paidFeeIds = paidFees.map(p => p.feeStructure.id);
+      const hasPaidAll = feeIds.every(feeId => paidFeeIds.includes(feeId));
 
       if (hasPaidAll) {
         paidStudentIds.push(Number(stu.username));
@@ -277,9 +305,10 @@ async getPaidFeesBySchool(schoolId: number) {
     classPendingAmount,
     totalPaidAmount,
     totalPendingAmount,
-    totalAmount:totalPaidAmount+totalPendingAmount
+    totalAmount: totalPaidAmount + totalPendingAmount,
   };
 }
+
 
 
 
