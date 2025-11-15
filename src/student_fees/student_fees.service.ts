@@ -208,6 +208,7 @@ async getPaidFeesBySchool(schoolId: number) {
           status: 'PAID',
         },
         select: {
+          paid_amount:true,
           feeStructure: {
             select: {
               id: true,
@@ -238,7 +239,7 @@ async getPaidFeesBySchool(schoolId: number) {
 
       // Sum fully paid amounts
       const fullyPaidSum = paidFees.reduce(
-        (sum, p) => sum + Number(p.feeStructure.total_amount || 0),
+        (sum, p) => sum + Number(p.paid_amount|| 0),
         0
       );
 
