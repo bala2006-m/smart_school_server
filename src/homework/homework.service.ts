@@ -63,24 +63,9 @@ export class HomeworkService {
 ) {
   if (!file) throw new BadRequestException('File is required');
 
-  // 1️⃣ Build upload directory
-  const uploadDir = `/var/www/images/homework/${schoolId}/${classId}`;
-
-  // 2️⃣ Ensure directory exists
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  // 3️⃣ final file path
-  const finalPath = `${uploadDir}/${file.filename}`;
-
-  // 4️⃣ Move file from temp → final location
-  fs.renameSync(file.path, finalPath);
-
-  // 5️⃣ Build public URL
+  // File is already stored by Multer → Now just prepare URL
   const imageUrl = `https://smartschoolserver.ramchintech.com/images/homework/${schoolId}/${classId}/${file.filename}`;
 
-  // 6️⃣ Save homework in DB
   return this.prisma.homework.create({
     data: {
       ...data,
@@ -92,6 +77,7 @@ export class HomeworkService {
     },
   });
 }
+
 
 
 

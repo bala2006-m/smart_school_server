@@ -14,7 +14,7 @@ import { HomeworkService } from './homework.service';
 import { CreateHomeworkDto } from './dto/create-homework.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { join } from 'path';
+import { extname, join } from 'path';
 import * as fs from 'fs';
 
 @Controller('homework')
@@ -59,44 +59,43 @@ export class HomeworkController {
   // ────────────────────────────────────────────────
   // CREATE HOMEWORK WITH FILE (IMAGE/PDF/ETC)
   // ────────────────────────────────────────────────
-  @Post('create-with-file/:schoolId/:classId')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const { schoolId, classId } = req.params;
+ @Post('create_with_file/:schoolId/:classId')
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: diskStorage({
+      destination: (req, file, callback) => {
+        const schoolId = req.params.schoolId;
+        const classId = req.params.classId;
 
-          const uploadPath = join(
-            '/var/www/images/homework',
-            schoolId,
-            classId,
-          );
+        if (!schoolId || !classId) {
+          return callback(new Error('Missing schoolId or classId'), '');
+        }
 
-          // Create folder if not exists
+        const uploadPath = join('/var/www/images/homework', schoolId, classId);
+
+        if (!fs.existsSync(uploadPath)) {
           fs.mkdirSync(uploadPath, { recursive: true });
+        }
 
-          cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-          const uniqueName = `${Date.now()}-${file.originalname}`;
-          cb(null, uniqueName);
-        },
-      }),
-      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+        callback(null, uploadPath);
+      },
+      filename: (req, file, callback) => {
+        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = extname(file.originalname);
+        callback(null, uniqueName + ext);
+      },
     }),
-  )
-  async createWithFile(
-    @Param('schoolId') schoolId: string,
-    @Param('classId') classId: string,
-    @UploadedFile() file: Express.Multer.File,
-    @Body() data: CreateHomeworkDto,
-  ) {
-    if (!file) {
-      throw new BadRequestException('File is required');
-    }
+  }),
+)
+async createWithFile(
+  @Body() data: CreateHomeworkDto,
+  @Param('schoolId') schoolId: string,
+  @Param('classId') classId: string,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.homeworkService.createWithFile(data, schoolId, classId, file);
+}
 
-    return this.homeworkService.createWithFile(data, schoolId, classId, file);
-  }
 
   // ────────────────────────────────────────────────
   // DELETE HOMEWORK BY ID (also deletes file)
