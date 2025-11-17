@@ -1,4 +1,10 @@
-import { IsString, IsInt, IsOptional, IsDateString } from 'class-validator';
+import { 
+  IsString,
+  IsInt,
+  IsOptional,
+  IsDateString,
+  IsArray 
+} from 'class-validator';
 
 export class CreateHomeworkDto {
   @IsInt()
@@ -16,16 +22,18 @@ export class CreateHomeworkDto {
   @IsString()
   description: string;
 
+  // Must be string because DTO receives it as a text date
   @IsDateString()
-  assigned_date: Date;
+  assigned_date: string;
 
   @IsDateString()
-  due_date: Date;
+  due_date: string;
 
   @IsString()
   assigned_by: string;
 
+  // optional when creating homework without file
   @IsOptional()
-  @IsString()
-  attachments?: string;
+  @IsArray()
+  attachments?: string[];
 }

@@ -332,6 +332,7 @@ model Student {
   route       String    @default("null")
   address      String    @default("null")
   date_of_join DateTime?    @default(now())
+  isRTE        Boolean      @default(false)
   class      Classes             @relation(fields: [class_id], references: [id])
   school     School              @relation(fields: [school_id], references: [id])
   user       Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])
@@ -501,7 +502,7 @@ model Homework {
   assigned_date DateTime
   due_date      DateTime
   assigned_by   String
-  attachments   String?
+  attachments   Json?
 
   @@index([school_id, class_id])
 }
