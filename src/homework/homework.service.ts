@@ -55,7 +55,7 @@ export class HomeworkService {
   // ────────────────────────────────────────────────
   // CREATE HOMEWORK WITH FILE UPLOAD
   // ────────────────────────────────────────────────
-  async createWithFile(
+ async createWithFile(
   data: CreateHomeworkDto,
   schoolId: string,
   classId: string,
@@ -63,24 +63,24 @@ export class HomeworkService {
 ) {
   if (!file) throw new BadRequestException('File is required');
 
-  // 1️⃣ Build folder path to store file
+  // 1️⃣ Build upload directory
   const uploadDir = `/var/www/images/homework/${schoolId}/${classId}`;
 
-  // 2️⃣ Create directory if missing
+  // 2️⃣ Ensure directory exists
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 
-  // 3️⃣ Final file path on server
+  // 3️⃣ final file path
   const finalPath = `${uploadDir}/${file.filename}`;
 
-  // 4️⃣ Move uploaded file from temp → final folder
-  fs.writeFileSync(finalPath, file.buffer);
+  // 4️⃣ Move file from temp → final location
+  fs.renameSync(file.path, finalPath);
 
-  // 5️⃣ Generate public URL
+  // 5️⃣ Build public URL
   const imageUrl = `https://smartschoolserver.ramchintech.com/images/homework/${schoolId}/${classId}/${file.filename}`;
 
-  // 6️⃣ Save homework in database
+  // 6️⃣ Save homework in DB
   return this.prisma.homework.create({
     data: {
       ...data,
@@ -92,6 +92,7 @@ export class HomeworkService {
     },
   });
 }
+
 
 
   // ────────────────────────────────────────────────
