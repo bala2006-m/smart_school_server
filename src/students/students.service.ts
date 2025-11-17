@@ -132,6 +132,48 @@ export class StudentsService {
       return { status: 'error', message: 'Query failed', details: error.message };
     }
   }
+
+
+  async fetchRteStudentsSchool(schoolId: number) {
+    try {
+
+
+      // Use include only, no select at top-level
+      const students = await this.prisma.student.findMany({
+        where: {
+          school_id: Number(schoolId),
+          isRTE:true,
+        },
+        select: {
+          username: true,
+          name: true,
+          gender: true, mobile: true, 
+          class:{
+            select:{
+              class:true,
+              section:true
+            }
+          }
+
+
+        },
+        orderBy: [
+        { class_id: 'asc' },
+          { gender: 'asc' },
+        { username: 'asc' },
+      
+
+      ],
+      
+
+      });
+
+      return { status: 'success', totalStudents:students.length,students };
+    } catch (error) {
+      return { status: 'error', message: 'Query failed', details: error.message };
+    }
+  }
+
   async getCombinedStudentReport(
     schoolId: string,
     fromDateInput: string,
