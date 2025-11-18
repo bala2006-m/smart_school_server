@@ -42,7 +42,8 @@ export class BusFeePaymentService {
     const newTotal = totalPaid + Number(amount_paid);
     let status: BusFeesStatus = BusFeesStatus.PENDING;
 
-    if (newTotal === structure.total_amount) status = BusFeesStatus.PAID;
+
+    if (newTotal == structure.total_amount) status = BusFeesStatus.PAID;
     else if (newTotal > 0 && newTotal < structure.total_amount)
       status = BusFeesStatus.PARTIALLY_PAID;
 
@@ -286,7 +287,8 @@ export class BusFeePaymentService {
       where: { school_id, class_id },
       select: {
         id: true, school_id: true, class_id: true, bus_fee_structure_id: true,
-        payment_date: true, amount_paid: true, payment_mode: true, status: true, created_by: true, created_at: true, updated_by: true, updated_at: true,
+        payment_date: true, amount_paid: true, payment_mode: true, status: true, created_by: true,
+        student_id:true,
         busFeeStructure: {
           select: {
             id: true,

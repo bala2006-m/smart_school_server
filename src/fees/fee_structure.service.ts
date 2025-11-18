@@ -70,7 +70,7 @@ export class FeeStructureService {
   // ✅ Get fee structures by class
   async getFeeStructuresByClass(schoolId: number, classId: number) {
     return this.prisma.feeStructure.findMany({
-      where: { school_id: schoolId, class_id: classId },
+      where: { school_id: schoolId, class_id: classId,status:'active' },
     });
   }
 async getFirstFeeStructuresByClassName(schoolId: number, className: string) {

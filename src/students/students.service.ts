@@ -60,7 +60,8 @@ export class StudentsService {
         select: {
           route: true
         },
-        distinct: ['route']
+        distinct: ['route'],
+        
 
       });
 
