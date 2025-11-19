@@ -46,6 +46,11 @@ export class BusFeePaymentService {
     if (newTotal == structure.total_amount) status = BusFeesStatus.PAID;
     else if (newTotal > 0 && newTotal < structure.total_amount)
       status = BusFeesStatus.PARTIALLY_PAID;
+    console.log(newTotal);
+    console.log(structure.total_amount);
+    
+    
+console.log(status);
 
     const payment = await this.prisma.busFeePayment.create({
       data: {

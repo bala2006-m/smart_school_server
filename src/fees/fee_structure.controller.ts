@@ -50,6 +50,13 @@ export class FeeStructureController {
   ) {
     return this.feeStructureService.getFeeStructuresByClass(schoolId, classId);
   }
+    @Get('all_class/:classId')
+  async getAllByClass(
+    @Param('classId', ParseIntPipe) classId: number,
+    @Query('schoolId', ParseIntPipe) schoolId: number,
+  ) {
+    return this.feeStructureService.getAllFeeStructuresByClass(schoolId, classId);
+  }
  @Get('class_name/:className')
   async getByClassName(
     @Param('className') className: string,
