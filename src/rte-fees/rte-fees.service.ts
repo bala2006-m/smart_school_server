@@ -110,4 +110,119 @@ async findAllRteStudents(school_id: number, class_id?: number) {
       orderBy: { payment_date: 'desc' },
     });
   }
+
+
+
+async findPendingPaidBySchool(school_id: number) {
+  // 1️⃣ Get all active RTE fee structures
+  const totalRteFees = await this.prisma.rteStructure.findMany({
+    where: { school_id, status: "active" },
+    select: {
+      id: true,
+      class_id: true,
+      total_amount: true,
+    },
+  });
+
+  // 2️⃣ Initialize data holders
+  const allStudents: Record<string, any[]> = {};
+  const totalStudents: Record<string, number> = {};
+  const paidStudents: Record<string, any[]> = {};
+  const pendingStudents: Record<string, any[]> = {};
+  const paidAmounts: Record<string, number> = {};
+  const pendingAmounts: Record<string, number> = {};
+
+  // 3️⃣ Loop through each RTE fee structure (class-wise)
+  for (const fee of totalRteFees) {
+    const students = await this.prisma.student.findMany({
+      where: {
+        school_id,
+        isRTE: true,
+        class_id: fee.class_id,
+      },
+      select: {
+        username: true,
+        name: true,
+        class_id: true,
+        mobile: true,
+      },
+    });
+
+    // Use class_id as the grouping key
+    const key = `${fee.class_id}`;
+
+    allStudents[key] = students;
+    totalStudents[key] = students.length;
+    paidStudents[key] = [];
+    pendingStudents[key] = [];
+    paidAmounts[key] = 0;
+    pendingAmounts[key] = 0;
+
+    // Process each student in this class
+    for (const student of students) {
+      const payments = await this.prisma.rteFeePayment.findMany({
+        where: {
+          rte_fee_structure_id: fee.id,
+          student_id: student.username,
+          status: { in: ["PAID", "PARTIALLY_PAID"] },
+        },
+        select: { amount_paid: true },
+      });
+
+      const totalPaidAmount = payments.reduce(
+        (sum, p) => sum + Number(p.amount_paid || 0),
+        0
+      );
+
+      // 🟢 Fully paid
+      if (totalPaidAmount >= Number(fee.total_amount)) {
+        paidStudents[key].push({
+          ...student,
+          totalPaidAmount,
+          status: "PAID",
+        });
+        paidAmounts[key] += totalPaidAmount;
+      } else {
+        // 🔴 Pending
+        pendingStudents[key].push({
+          ...student,
+          totalPaidAmount,
+          pendingAmount: Number(fee.total_amount) - totalPaidAmount,
+          status: totalPaidAmount > 0 ? "PARTIALLY_PAID" : "UNPAID",
+        });
+
+        paidAmounts[key] += totalPaidAmount;
+        pendingAmounts[key] += Number(fee.total_amount) - totalPaidAmount;
+      }
+    }
+  }
+
+  // 4️⃣ Totals across all classes
+  const totalPaidAmount = Object.values(paidAmounts).reduce((a, b) => a + b, 0);
+  const totalPendingAmount = Object.values(pendingAmounts).reduce(
+    (a, b) => a + b,
+    0
+  );
+
+  const totalPaidStudents = Object.values(paidStudents).reduce(
+    (sum, arr) => sum + arr.length,
+    0
+  );
+  const totalPendingStudents = Object.values(pendingStudents).reduce(
+    (sum, arr) => sum + arr.length,
+    0
+  );
+
+  // 5️⃣ Final Return
+  return {
+    totalRteFees: totalRteFees.length,
+    totalPaidAmount,
+    totalPendingAmount,
+    totalAmount: Number(totalPaidAmount) + Number(totalPendingAmount),
+    totalPaidStudents,
+    totalPendingStudents,
+    totalStudents: Number(totalPaidStudents) + Number(totalPendingStudents),
+  };
+}
+
 }

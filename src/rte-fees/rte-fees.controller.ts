@@ -68,5 +68,8 @@ export class RteFeesController {
   ) {
     return this.service.findAllRtePaidStudents(Number(school_id), Number(class_id));
   }
-
+ @Get('pending_paid_school/:schoolId')
+  findPendingPaidBySchool(@Param('schoolId') schoolId: string) {
+    return this.service.findPendingPaidBySchool(Number(schoolId));
+  }
 }
