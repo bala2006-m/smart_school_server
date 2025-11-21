@@ -439,6 +439,33 @@ export class StudentsService {
       students,
     };
   }
+
+
+    async getNonRteByClass(class_id: string) {
+    const students = await this.prisma.student.findMany({
+      where: { class_id: Number(class_id) ,isRTE:false},
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        mobile: true,
+        gender: true,
+        community: true,
+        father_name: true,
+        DOB: true,
+        route: true,
+
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      status: 'success',
+      count: students.length,
+      students,
+    };
+  }
   async getAllByClassAndSchool(class_id: string, school_id: string) {
     const students = await this.prisma.student.findMany({
       where: { class_id: Number(class_id), school_id: Number(school_id) },

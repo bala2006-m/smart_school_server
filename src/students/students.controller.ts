@@ -113,6 +113,15 @@ async updateStudent(
 
       return this.studentsService.getAllByClass(classId);
     }
+
+      @Get('fetch-non_rte_student-data')
+    async getNonRteByClassAndSchool(@Query('class_id') classId: string, @Query('school_id') schoolId: string ) {
+      if (!classId||!schoolId) {
+        return { status: 'error', message: 'Missing class_id or school_id' };
+      }
+
+      return this.studentsService.getNonRteByClass(classId);
+    }
 @Get('count_student')
   async countStudents(@Query('school_id') schoolId?: string) {
     if (!schoolId) {

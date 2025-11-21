@@ -434,6 +434,7 @@ async getPaidFeesBySchool(schoolId: number) {
     where: {
       school_id: schoolId,
       class_id: { in: classIds },
+      isRTE:false,
     },
     select: {
       id: true,
@@ -522,6 +523,7 @@ async getCountPendingFees(schoolId: number) {
     where: {
       school_id: schoolId,
       class_id: { in: classIds },
+      isRTE:false,
     },
     select: {
       id: true,
