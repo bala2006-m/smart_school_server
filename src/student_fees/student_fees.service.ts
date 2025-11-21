@@ -181,6 +181,7 @@ async getPaidFeesBySchool(schoolId: number) {
       where: {
         school_id: Number(schoolId),
         class_id: classId,
+        isRTE:false,
       },
       select: { id: true },
     });
