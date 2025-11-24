@@ -39,7 +39,7 @@ async findAllRteStudents(school_id: number, class_id?: number) {
     return this.prisma.student.findMany({
       where: {
         school_id,
-        ...(class_id && { class_id }),
+        class_id,
         isRTE:true,
       },
       orderBy: [
