@@ -21,7 +21,13 @@ export class RteFeesController {
   ) {
     return this.service.findAllStructures(Number(school_id), Number(class_id));
   }
-
+  @Get('structure_active')
+  findActiveStructures(
+    @Query('school_id') school_id: number,
+    @Query('class_id') class_id?: number,
+  ) {
+    return this.service.findActiveStructures(Number(school_id), Number(class_id));
+  }
   @Get('structure/:id')
   findOneStructure(@Param('id') id: number) {
     return this.service.findOneStructure(Number(id));

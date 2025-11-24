@@ -30,7 +30,18 @@ export class RteFeesService {
     return this.prisma.rteStructure.findMany({
       where: {
         school_id,
-        ...(class_id && { class_id }),
+        class_id,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+    async findActiveStructures(school_id: number, class_id?: number) {
+    return this.prisma.rteStructure.findMany({
+      where: {
+        school_id,
+        class_id,
+        status:'active'
       },
       orderBy: { created_at: 'desc' },
     });
@@ -53,7 +64,7 @@ async findAllRteStudents(school_id: number, class_id?: number) {
     return this.prisma.student.findMany({
       where: {
         school_id,
-        ...(class_id && { class_id }),
+        class_id,
         isRTE:true,
       },
       select:{
@@ -105,7 +116,7 @@ async findAllRteStudents(school_id: number, class_id?: number) {
     return this.prisma.rteFeePayment.findMany({
       where: {
         school_id,
-        ...(student_id && { student_id }),
+        student_id
       },
       orderBy: { payment_date: 'desc' },
     });
