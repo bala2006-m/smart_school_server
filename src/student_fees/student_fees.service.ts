@@ -441,6 +441,55 @@ async getDailyPaidFeesClass(schoolId: number,class_id:number, date: Date) {
       },
     });
   }
+
+
+   async getPeriodicalPaidFeesClass(schoolId: number, class_id:number,startDate: Date, endDate: Date) {
+
+    const startOfDay = new Date(startDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.prisma.studentFees.findMany({
+      where: {
+        school_id: Number(schoolId),
+        class_id:Number(class_id),
+        status: {
+          in: ['PAID', 'PARTIALLY_PAID']
+        },
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      orderBy: {
+        class_id: 'asc',
+      },
+      include: {
+        payments: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            gender: true,
+            email: true,
+            mobile: true,
+            class_id: true,
+            school_id: true,
+            route: true,
+          }
+        },
+        admin: true,
+        feeStructure: true,
+        class: true,
+      },
+    });
+  }
+
+
+
   /**
    * Update status manually (Admin use)
    */
@@ -455,6 +504,98 @@ async getDailyPaidFeesClass(schoolId: number,class_id:number, date: Date) {
   // 1️⃣ Find all classes in the school that have fee structures
   const classesWithFees = await this.prisma.classes.findMany({
     where: {
+      school_id: schoolId,
+      feeStructure: {
+        some: {}, // class has at least one fee structure
+      },
+    },
+    include: {
+      feeStructure: true,
+    },
+  });
+
+  // Map to hold classId => array of feeStructure ids for quick lookup
+  const classFeeMap = new Map<number, number[]>();
+  classesWithFees.forEach(cls => {
+    classFeeMap.set(cls.id, cls.feeStructure.map(f => f.id));
+  });
+
+  const classIds = [...classFeeMap.keys()];
+
+  // 2️⃣ Fetch all students of these classes with their studentFees and class info
+  const students = await this.prisma.student.findMany({
+    where: {
+      school_id: schoolId,
+      class_id: { in: classIds },
+      isRTE:false,
+    },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      mobile: true,
+      class_id: true,
+      father_name: true,
+      route: true,
+      class: true,
+      studentFees: {
+        include: {
+          feeStructure: {
+            select: {
+              id: true,
+              school_id: true,
+              class_id: true,
+              title: true,
+              descriptions: true,
+              amounts: true,
+              total_amount: true,
+              status: true,
+            },
+          },
+          payments: true,
+        },
+      },
+    },
+  });
+
+  // 3️⃣ Filter students who have pending fees
+  const pendingStudents = students.filter(student => {
+    const feesForClass = classFeeMap.get(student.class_id) || [];
+
+    // Use feeStructure.id from studentFee to map with feesForClass
+    const studentFeeStructureIds = student.studentFees.map(sf => sf.feeStructure.id);
+
+    // Check if any fee is PARTIALLY_PAID => include
+    if (student.studentFees.some(sf => sf.status === 'PARTIALLY_PAID')) {
+      return true;
+    }
+
+    // Check if student is missing any feeStructure in their studentFees => include
+    const missingFees = feesForClass.some(feeId => !studentFeeStructureIds.includes(feeId));
+    if (missingFees) {
+      return true;
+    }
+
+    // If none partial and no missing fee => exclude (fully paid)
+    return false;
+  });
+
+  // 4️⃣ Return combined result
+  return {
+    school_id: schoolId,
+    totalPending: pendingStudents.length,
+    students: pendingStudents,
+    feeStructures: classesWithFees.flatMap(c => c.feeStructure),
+  };
+}
+
+
+
+ async getPendingFeeListClass(schoolId: number,class_id:number) {
+  // 1️⃣ Find all classes in the school that have fee structures
+  const classesWithFees = await this.prisma.classes.findMany({
+    where: {
+      id:class_id,
       school_id: schoolId,
       feeStructure: {
         some: {}, // class has at least one fee structure
