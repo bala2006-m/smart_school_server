@@ -309,7 +309,50 @@ async getPaidFeesBySchool(schoolId: number) {
   };
 }
 
+async getDailyPaidFeesClass(schoolId: number,class_id:number, date: Date) {
 
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return this.prisma.studentFees.findMany({
+      where: {
+        class_id:Number(class_id),
+        school_id: Number(schoolId),
+        status: {
+          in: ['PAID', 'PARTIALLY_PAID']
+        },
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      orderBy: {
+        class_id: 'asc',
+      },
+      include: {
+        payments: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            gender: true,
+            email: true,
+            mobile: true,
+            class_id: true,
+            school_id: true,
+            route: true,
+          }
+        },
+        admin: true,
+        feeStructure: true,
+        class: true,
+      },
+    });
+  }
 
 
   async getDailyPaidFees(schoolId: number, date: Date) {

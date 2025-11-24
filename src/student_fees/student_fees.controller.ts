@@ -90,6 +90,20 @@ export class StudentFeesController {
     
     return this.studentFeesService.getDailyPaidFees(schoolId, date);
   }
+
+@Get('daily_paid_class/:date')
+  async getDailyPaidFeesClass(
+    @Param('date') date: Date,
+    @Query('schoolId') schoolId: number,
+    @Query('classId') classId: number,
+
+  ) {
+    
+    
+    return this.studentFeesService.getDailyPaidFeesClass(schoolId, classId,date);
+  }
+  
+
   @Get('periodical_paid/:startDate/:endDate')
   async getPeriodicalPaidFees(
     @Param('startDate') startDate: Date,
