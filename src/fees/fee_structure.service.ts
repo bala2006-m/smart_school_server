@@ -63,6 +63,9 @@ export class FeeStructureService {
   async getAllFeeStructures(schoolId: number) {
     return this.prisma.feeStructure.findMany({
       where: { school_id: schoolId },
+      include:{
+        class:true,
+      },
       orderBy: { class_id: 'asc' },
     });
   }
