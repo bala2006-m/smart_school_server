@@ -250,7 +250,19 @@ async findBySchoolClassAndDate(school_id: number,class_id:number, payment_date: 
           lte: endOfDay,
         }
       },
-      include: { student: true, RteStructure: true, classes: true, admin: true },
+      include: { student: {
+        select:{
+          name:true,
+          username:true,
+          gender:true,
+
+        }
+      }, RteStructure: true, classes: true, admin: {
+        select:{
+          name:true,
+          username:true,
+        }
+      } },
       orderBy: { created_at: 'desc' },
     });
     return { status: 'success', payments: data };
