@@ -189,6 +189,7 @@ export class StudentsService {
         name: true,
         gender: true,
         mobile: true,
+        route:true,
         class: {
           select: {
             class: true,
