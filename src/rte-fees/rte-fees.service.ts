@@ -236,4 +236,23 @@ async findPendingPaidBySchool(school_id: number) {
   };
 }
 
+
+async findBySchoolClassAndDate(school_id: number,class_id:number, payment_date: string) {
+    const startOfDay = new Date(payment_date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(payment_date);
+    endOfDay.setHours(23, 59, 59, 999);
+    const data = await this.prisma.rteFeePayment.findMany({
+      where: {
+        school_id,class_id, payment_date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        }
+      },
+      include: { student: true, RteStructure: true, classes: true, admin: true },
+      orderBy: { created_at: 'desc' },
+    });
+    return { status: 'success', payments: data };
+  }
 }

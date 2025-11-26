@@ -6,6 +6,15 @@ export class PrismaService extends PrismaClient
   implements OnModuleInit, OnModuleDestroy {
 
   private readonly logger = new Logger(PrismaService.name);
+// constructor() {
+//     super({
+//       datasources: {
+//         db: {
+//           url:'mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school',
+//         },
+//       },
+//     });
+//   }
 
   async onModuleInit() {
     try {

@@ -78,4 +78,9 @@ export class RteFeesController {
   findPendingPaidBySchool(@Param('schoolId') schoolId: string) {
     return this.service.findPendingPaidBySchool(Number(schoolId));
   }
+
+   @Get('school_class_date/:schoolId/:classId/:date')
+    findBySchoolClassAndDate(@Param('schoolId') schoolId: string,@Param('classId') class_id: string,@Param('date') payment_date: string) {
+      return this.service.findBySchoolClassAndDate(Number(schoolId),Number(class_id),payment_date);
+    }
 }
