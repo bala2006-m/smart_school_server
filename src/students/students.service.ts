@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { not } from 'rxjs/internal/util/not';
 
 @Injectable()
 export class StudentsService {
@@ -174,6 +175,47 @@ export class StudentsService {
       return { status: 'error', message: 'Query failed', details: error.message };
     }
   }
+
+
+  async fetchBusStudentsSchool(schoolId: number) {
+  try {
+    const students = await this.prisma.student.findMany({
+      where: {
+        school_id: Number(schoolId),
+        route: { not: 'null' }
+      },
+      select: {
+        username: true,
+        name: true,
+        gender: true,
+        mobile: true,
+        class: {
+          select: {
+            class: true,
+            section: true
+          }
+        }
+      },
+      orderBy: [
+        { class_id: 'asc' },
+        { gender: 'asc' },
+        { username: 'asc' }
+      ]
+    });
+
+    return {
+      status: 'success',
+      totalStudents: students.length,
+      students
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      message: 'Query failed',
+      details: error.message
+    };
+  }
+}
 
   async getCombinedStudentReport(
     schoolId: string,
