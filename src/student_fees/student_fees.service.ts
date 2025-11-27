@@ -124,7 +124,11 @@ export class StudentFeesService {
             school_id: true,
             route: true,
           }
-        }, admin: true, feeStructure: true
+        }, admin:{
+          select:{
+            name:true,
+          }
+        }, feeStructure: true
       },
     });
   }
