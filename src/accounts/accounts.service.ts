@@ -29,6 +29,7 @@ async fetchAll(school_id?: number) {
     termFeesTotal: sum(accounts),
     busFeeTotal: sum(bus),
     rteFeesTotal: sum(rte),
+    grandTotal: sum(accounts) + sum(bus) + sum(rte),
   };
 return  totals;
 //   return {
