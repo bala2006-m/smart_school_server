@@ -29,7 +29,7 @@ import { UploadModule } from './upload/upload.module';
 import { BusFeePaymentModule } from './bus_fee_payment/bus-fee-payment.module';
 import { BusFeeStructureModule} from './bus_fee_structure/bus-fee-structure.module';
 import { RteFeesModule} from './rte-fees/rte-fees.module';
-
+import { AccountsModule } from './accounts/accounts.module';
  @Module({
   imports: [
     StudentsModule,
@@ -60,6 +60,7 @@ import { RteFeesModule} from './rte-fees/rte-fees.module';
          BusFeePaymentModule,
          BusFeeStructureModule,
          RteFeesModule,
+         AccountsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
