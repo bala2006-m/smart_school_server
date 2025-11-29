@@ -36,6 +36,14 @@ export class RteFeesService {
     });
   }
 
+   async findAllStructuresSchool(school_id: number) {
+    return this.prisma.rteStructure.findMany({
+      where: {
+        school_id,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
     async findActiveStructures(school_id: number, class_id?: number) {
     return this.prisma.rteStructure.findMany({
       where: {

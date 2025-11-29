@@ -597,12 +597,24 @@ async getDailyPaidFeesClass(schoolId: number,class_id:number, date: Date) {
 
  async getPendingFeeListClass(schoolId: number,class_id:number) {
   // 1️⃣ Find all classes in the school that have fee structures
+  const totalStudents = await this.prisma.student.findMany({
+    where: {
+      class_id,
+      school_id: schoolId,
+    isRTE:false,
+    },
+    select:{
+      username:true
+    }
+  });
   const classesWithFees = await this.prisma.classes.findMany({
     where: {
       id:class_id,
       school_id: schoolId,
       feeStructure: {
-        some: {}, // class has at least one fee structure
+        some: {
+          
+        }, 
       },
     },
     include: {
@@ -679,6 +691,7 @@ async getDailyPaidFeesClass(schoolId: number,class_id:number, date: Date) {
   // 4️⃣ Return combined result
   return {
     school_id: schoolId,
+    totalStudents:totalStudents.length,
     totalPending: pendingStudents.length,
     students: pendingStudents,
     feeStructures: classesWithFees.flatMap(c => c.feeStructure),
