@@ -41,6 +41,10 @@ export class RteFeesService {
       where: {
         school_id,
       },
+      include:{
+        class:true,
+      
+      },
       orderBy: { created_at: 'desc' },
     });
   }
