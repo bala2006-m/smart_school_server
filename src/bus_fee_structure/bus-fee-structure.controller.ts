@@ -44,6 +44,12 @@ export class BusFeeStructureController {
   findBySchool(@Param('schoolId') schoolId: string) {
     return this.service.findBySchool(Number(schoolId));
   }
+
+  @Get('active_school/:schoolId')
+  @ApiOperation({ summary: 'Get all bus fee structures for a specific school' })
+  findActiveBySchool(@Param('schoolId') schoolId: string) {
+    return this.service.findActiveBySchool(Number(schoolId));
+  }
     @Get('school_class/:schoolId/:classId')
   @ApiOperation({ summary: 'Get all bus fee structures for a specific school and class' })
   findBySchoolClass(@Param('schoolId') schoolId: string,@Param('classId') classId: string) {

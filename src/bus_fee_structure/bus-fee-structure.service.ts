@@ -77,6 +77,20 @@ export class BusFeeStructureService {
 
     return data;
   }
+
+  async findActiveBySchool(schoolId: number) {
+    const data = await this.prisma.busFeeStructure.findMany({
+      where: { school_id: schoolId,status:'active' },
+      include: { busFeePayment: true, },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!data || data.length === 0) {
+      throw new NotFoundException(`No Bus Fee Structures found for school ID ${schoolId}`);
+    }
+
+    return data;
+  }
  async findBySchoolClass(schoolId: number, classId: number) {
   const data = await this.prisma.busFeeStructure.findMany({
     where: { 
