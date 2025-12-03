@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 // datasource db {
 //   provider = "mysql"
 // }
@@ -46,6 +47,26 @@ enum BusFeesStatus {
   PENDING
   PARTIALLY_PAID
   PAID
+}
+
+enum FinanceType {
+  INCOME
+  EXPENSE
+  DRAWING_IN
+  DRAWING_OUT
+}
+
+model Finance {
+  id         Int         @id @default(autoincrement())
+  school_id  Int
+  amount     Float
+  reason     String?
+  type       FinanceType
+  created_by String
+  created_at DateTime    @default(now())
+  updated_by String
+  updated_at DateTime    @updatedAt
+  school School  @relation(fields: [school_id], references: [id])
 }
 
 model RteStructure {
@@ -317,6 +338,7 @@ model School {
   busFeePayment      BusFeePayment[]
   rteStructure       RteStructure[]
   rteFeePayment      RteFeePayment[]
+  Finance Finance[]
 }
 
 model BlockedSchool {

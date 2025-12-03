@@ -30,6 +30,7 @@ import { BusFeePaymentModule } from './bus_fee_payment/bus-fee-payment.module';
 import { BusFeeStructureModule} from './bus_fee_structure/bus-fee-structure.module';
 import { RteFeesModule} from './rte-fees/rte-fees.module';
 import { AccountsModule } from './accounts/accounts.module';
+import { FinanceModule } from './finance/finance.module';
  @Module({
   imports: [
     StudentsModule,
@@ -61,6 +62,7 @@ import { AccountsModule } from './accounts/accounts.module';
          BusFeeStructureModule,
          RteFeesModule,
          AccountsModule,
+         FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
