@@ -23,8 +23,8 @@ export class FinanceService {
     return this.prisma.finance.delete({ where: { id } });
   }
 
-  async findOne(id: number) {
-  return this.prisma.finance.findMany({ where: { id } });
+  async findOne(school_id: number) {
+  return this.prisma.finance.findMany({ where: { school_id } });
 }
 
 }
