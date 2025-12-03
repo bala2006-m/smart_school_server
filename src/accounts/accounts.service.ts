@@ -83,19 +83,27 @@ const finance=await this.prisma.$queryRaw<
     WHERE school_id = ${school_id}
     AND DATE(updated_at) BETWEEN ${fromDate} AND ${toDate};
   `;
+
+  let finTot=0;
+ 
   const sum = (arr: any[]) =>
     arr.reduce(
       (acc, curr) =>
         acc + (curr.paid_amount ?? curr.amount_paid ?? 0),
       0
     );
-
+ for(var i=0;i<finance.length;i++){
+  
+  
+finTot+=(finance[i]['amount'])
+  }
+ 
   return {
     termFeesTotal: sum(accounts),
     busFeeTotal: sum(bus),
     rteFeesTotal: sum(rte),
     finance,
-    grandTotal: sum(accounts) + sum(bus) + sum(rte)+sum(finance['amount']),
+    grandTotal: sum(accounts) + sum(bus) + sum(rte)+finTot,
   };
 }
 
