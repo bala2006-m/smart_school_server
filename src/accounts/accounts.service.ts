@@ -75,7 +75,14 @@ async fetchAllPeriodical(school_id: number, from: Date, to: Date) {
     WHERE school_id = ${school_id}
     AND DATE(created_at) BETWEEN ${fromDate} AND ${toDate};
   `;
-
+const finance=await this.prisma.$queryRaw<
+    { amount: number }[]
+  >`
+    SELECT amount,reason
+    FROM Finance
+    WHERE school_id = ${school_id}
+    AND DATE(updated_at) BETWEEN ${fromDate} AND ${toDate};
+  `;
   const sum = (arr: any[]) =>
     arr.reduce(
       (acc, curr) =>
@@ -87,7 +94,8 @@ async fetchAllPeriodical(school_id: number, from: Date, to: Date) {
     termFeesTotal: sum(accounts),
     busFeeTotal: sum(bus),
     rteFeesTotal: sum(rte),
-    grandTotal: sum(accounts) + sum(bus) + sum(rte),
+    finance,
+    grandTotal: sum(accounts) + sum(bus) + sum(rte)+sum(finance['amount']),
   };
 }
 
