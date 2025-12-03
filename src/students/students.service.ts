@@ -89,7 +89,8 @@ export class StudentsService {
           username: true,
           name: true,
           route: true, gender: true, mobile: true, class_id: true, school_id: true, father_name: true,
-          class:true
+          class:true,
+          school:true,
 
         },
         orderBy: {
