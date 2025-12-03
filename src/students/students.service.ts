@@ -500,6 +500,8 @@ export class StudentsService {
         father_name: true,
         DOB: true,
         route: true,
+        class:true,
+        school:true
 
       },
       orderBy: { name: 'asc' },
