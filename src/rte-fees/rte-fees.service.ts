@@ -65,6 +65,7 @@ async findAllRteStudents(school_id: number, class_id?: number) {
         class_id,
         isRTE:true,
       },
+      include:{class:true,school:true},
       orderBy: [
         
         {username: 'asc'},{gender:'desc'}, ],
