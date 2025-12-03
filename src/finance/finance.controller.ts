@@ -17,9 +17,9 @@ export class FinanceController {
 //     return this.financeService.findAll();
 //   }
 
-  @Get(':schoolId')
+  @Get('income/:schoolId')
   findOne(@Param('schoolId') id: string) {
-    return this.financeService.findOne(Number(id));
+    return this.financeService.findIncome(Number(id));
   }
 
   @Put(':id')
