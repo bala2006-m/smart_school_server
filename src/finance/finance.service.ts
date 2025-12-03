@@ -15,15 +15,16 @@ export class FinanceService {
     return this.prisma.finance.findMany();
   }
 
-//   async findOne(id: number): Promise<Finance> {
-//     return this.prisma.finance.findUnique({ where: { id } });
-//   }
-
-  async update(id: number, data: Prisma.FinanceUpdateInput): Promise<Finance> {
+    async update(id: number, data: Prisma.FinanceUpdateInput): Promise<Finance> {
     return this.prisma.finance.update({ where: { id }, data });
   }
 
   async remove(id: number): Promise<Finance> {
     return this.prisma.finance.delete({ where: { id } });
   }
+
+  async findOne(id: number) {
+  return this.prisma.finance.findMany({ where: { id } });
+}
+
 }

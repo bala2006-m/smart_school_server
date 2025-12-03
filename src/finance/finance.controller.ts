@@ -12,15 +12,15 @@ export class FinanceController {
     return this.financeService.create(createFinanceDto);
   }
 
-  @Get()
-  findAll(): Promise<Finance[]> {
-    return this.financeService.findAll();
-  }
-
-//   @Get(':id')
-//   findOne(@Param('id') id: string): Promise<Finance> {
-//     return this.financeService.findOne(Number(id));
+//   @Get()
+//   findAll(): Promise<Finance[]> {
+//     return this.financeService.findAll();
 //   }
+
+  @Get(':schoolId')
+  findOne(@Param('id') id: string) {
+    return this.financeService.findOne(Number(id));
+  }
 
   @Put(':id')
   update(@Param('id') id: string, @Body() updateFinanceDto: any): Promise<Finance> {
