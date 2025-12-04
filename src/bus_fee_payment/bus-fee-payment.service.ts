@@ -19,6 +19,7 @@ export class BusFeePaymentService {
       reference_number,
       remarks,
       created_by,
+      payment_date,
     } = data;
 
     if (!school_id || !student_id || !bus_fee_structure_id || !amount_paid) {
@@ -46,11 +47,6 @@ export class BusFeePaymentService {
     if (newTotal == structure.total_amount) status = BusFeesStatus.PAID;
     else if (newTotal > 0 && newTotal < structure.total_amount)
       status = BusFeesStatus.PARTIALLY_PAID;
-    console.log(newTotal);
-    console.log(structure.total_amount);
-    
-    
-console.log(status);
 
     const payment = await this.prisma.busFeePayment.create({
       data: {
@@ -65,6 +61,7 @@ console.log(status);
         created_by,
         updated_by: created_by,
         status,
+        payment_date,
       },
     });
 

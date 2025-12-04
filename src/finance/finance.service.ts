@@ -27,4 +27,8 @@ export class FinanceService {
   return this.prisma.finance.findMany({ where: { school_id,type:'INCOME'} });
 }
 
+async findExpense(school_id: number) {
+  return this.prisma.finance.findMany({ where: { school_id,type:'EXPENSE'} });
+}
+
 }
