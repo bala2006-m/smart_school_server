@@ -61,7 +61,7 @@ export class BusFeePaymentService {
         created_by,
         updated_by: created_by,
         status,
-        payment_date,
+        payment_date:new Date(payment_date),
       },
     });
 
