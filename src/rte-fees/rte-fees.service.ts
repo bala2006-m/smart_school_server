@@ -117,9 +117,14 @@ async findAllRteStudents(school_id: number, class_id?: number) {
 
   // Create Payment
   async createPayment(dto: CreateRtePaymentDto) {
+    console.log(dto);
+    
     return this.prisma.rteFeePayment.create({
       data: {
+        
         ...dto,
+        payment_date:new Date(dto.payment_date),
+
       },
     });
   }

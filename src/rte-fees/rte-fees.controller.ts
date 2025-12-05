@@ -55,7 +55,8 @@ export class RteFeesController {
 
   // PAYMENTS ==============================================================
   @Post('payment')
-  createPayment(@Body() dto: CreateRtePaymentDto) {
+  createPayment(@Body() dto: CreateRtePaymentDto) {console.log(dto);
+  
     return this.service.createPayment(dto);
   }
 

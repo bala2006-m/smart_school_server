@@ -29,6 +29,6 @@ export class CreateRtePaymentDto {
 
   @IsString()
   created_by: string;
-
-  payment_date:Date;
+ @IsString()
+  payment_date:string;
 }
