@@ -30,5 +30,11 @@ export class FinanceService {
 async findExpense(school_id: number) {
   return this.prisma.finance.findMany({ where: { school_id,type:'EXPENSE'} });
 }
+async findDIn(school_id: number) {
+  return this.prisma.finance.findMany({ where: { school_id,type:'DRAWING_IN'} });
+}
+async findDOut(school_id: number) {
+  return this.prisma.finance.findMany({ where: { school_id,type:'DRAWING_OUT'} });
+}
 
 }

@@ -25,6 +25,14 @@ export class FinanceController {
   findExpense(@Param('schoolId') id: string) {
     return this.financeService.findExpense(Number(id));
   }
+  @Get('drawing_in/:schoolId')
+  findDIn(@Param('schoolId') id: string) {
+    return this.financeService.findDIn(Number(id));
+  }
+  @Get('drawing_out/:schoolId')
+  findDOut(@Param('schoolId') id: string) {
+    return this.financeService.findDOut(Number(id));
+  }
   @Put(':id')
   update(@Param('id') id: string, @Body() updateFinanceDto: any): Promise<Finance> {
     return this.financeService.update(Number(id), updateFinanceDto);
