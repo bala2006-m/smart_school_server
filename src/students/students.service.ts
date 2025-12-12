@@ -90,7 +90,12 @@ export class StudentsService {
           name: true,
           route: true, gender: true, mobile: true, class_id: true, school_id: true, father_name: true,
           class:true,
-          school:true,
+          school:{
+            select:{
+              name:true,
+              address:true
+            }
+          },
 
         },
         orderBy: {
