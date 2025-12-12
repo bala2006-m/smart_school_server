@@ -65,7 +65,20 @@ async findAllRteStudents(school_id: number, class_id?: number) {
         class_id,
         isRTE:true,
       },
-      include:{class:true,school:true},
+      select: {
+          id: true,
+          username: true,
+          name: true,
+          route: true, gender: true, mobile: true, class_id: true, school_id: true, father_name: true,
+          class:true,
+          school:{
+            select:{
+              name:true,
+              address:true
+            }
+          },
+
+        },
       orderBy: [
         
         {username: 'asc'},{gender:'desc'}, ],
