@@ -501,7 +501,12 @@ export class StudentsService {
         DOB: true,
         route: true,
         class:true,
-        school:true
+        school:{
+          select:{
+            name:true,
+            address:true,
+          }
+        }
 
       },
       orderBy: { name: 'asc' },
