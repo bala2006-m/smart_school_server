@@ -32,6 +32,13 @@ export class HomeworkController {
     return this.homeworkService.fetchHomeworkByClassId(schoolId, classId);
   }
 
+@Get('fetch_homework_by_class_id/:schoolId/:classId')
+  async fetchHomeworkByClassIds(
+    @Param('schoolId', ParseIntPipe) schoolId: number,
+    @Param('classId', ParseIntPipe) classId: number,
+  ) {
+    return this.homeworkService.fetchHomeworkByClassId(schoolId, classId);
+  }
   // ────────────────────────────────────────────────
   // FETCH HOMEWORK BY STAFF
   // ────────────────────────────────────────────────
