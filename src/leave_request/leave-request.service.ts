@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from 'src/common/prisma.service';
+import { PrismaService } from '../common/prisma.service';
 import * as nodemailer from 'nodemailer';
 
 export type RoleType = 'admin' | 'staff' | 'student';
