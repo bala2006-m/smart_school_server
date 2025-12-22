@@ -72,6 +72,75 @@ export class AccountsService {
     const fromDate = format(from);
     const toDate = format(to);
 
+ const beforeAccountsCash = await this.prisma.$queryRaw<
+      { paid_amount: number }[]
+    >`
+  SELECT sf.paid_amount 
+  FROM StudentFees sf
+  INNER JOIN FeePayments fp ON sf.aId = fp.student_fee_id
+  WHERE sf.school_id = ${school_id}
+  AND fp.method = 'CASH'
+  AND DATE(fp.payment_date) < ${toDate}
+`;
+
+    const beforeAccountsOnline = await this.prisma.$queryRaw<
+      { paid_amount: number }[]
+    >`
+  SELECT sf.paid_amount 
+  FROM StudentFees sf
+  INNER JOIN FeePayments fp ON sf.aId = fp.student_fee_id
+  WHERE sf.school_id = ${school_id}
+  AND fp.method = 'ONLINE'
+  AND DATE(fp.payment_date) < ${toDate}
+`;
+
+
+    const beforeBusCash = await this.prisma.$queryRaw<
+      { amount_paid: number }[]
+    >`
+    SELECT amount_paid
+    FROM BusFeePayment
+    WHERE school_id = ${school_id}
+     AND payment_mode= 'CASH'
+    AND DATE(payment_date) <${toDate};
+  `;
+    const beforeBusOnline = await this.prisma.$queryRaw<
+      { amount_paid: number }[]
+    >`
+    SELECT amount_paid
+    FROM BusFeePayment
+    WHERE school_id = ${school_id}
+     AND payment_mode= 'ONLINE'
+    AND DATE(payment_date) < ${toDate};
+  `;
+    const beforeRteCash = await this.prisma.$queryRaw<
+      { amount_paid: number }[]
+    >`
+    SELECT amount_paid
+    FROM RteFeePayment
+    WHERE school_id = ${school_id}
+    AND payment_mode= 'cash'
+    AND DATE(payment_date) < ${toDate};
+  `;
+    const beforeRteOnline = await this.prisma.$queryRaw<
+      { amount_paid: number }[]
+    >`
+    SELECT amount_paid
+    FROM RteFeePayment
+    WHERE school_id = ${school_id}
+    AND payment_mode= 'online'
+    AND DATE(payment_date) < ${toDate};
+  `;
+    const beforeFinance = await this.prisma.$queryRaw<
+      { amount: number,type:string }[]
+    >`
+    SELECT amount,reason,type
+    FROM Finance
+    WHERE school_id = ${school_id}
+    AND DATE(updated_at) < ${toDate};
+  `;
+
+
     const accountsCash = await this.prisma.$queryRaw<
       { paid_amount: number }[]
     >`
@@ -155,7 +224,29 @@ export class AccountsService {
     }
 
 
+const totals = beforeFinance.reduce((acc, { amount, type }) => {
+  if (acc.hasOwnProperty(type)) {
+    acc[type] += amount;
+  }
+  return acc;
+}, {
+  INCOME: 0,
+  EXPENSE: 0,
+  DRAWING_IN: 0,
+  DRAWING_OUT: 0
+});
+
+
+const beforeCashOnHand=sum(beforeAccountsCash)+sum(beforeBusCash)+sum(beforeRteCash)+totals.INCOME+totals.DRAWING_IN-totals.DRAWING_OUT-totals.EXPENSE;
+
+
+
+const beforeCashOnBank=sum(beforeAccountsOnline)+sum(beforeBusOnline)+sum(beforeRteOnline);
+
     return {
+      beforetotal:beforeCashOnBank+beforeCashOnHand,
+      beforeCashOnHand,
+      beforeCashOnBank,
       termCash: sum(accountsCash),
       termOnline: sum(accountsOnline),
       termFeesTotal: sum(accountsCash) + sum(accountsOnline),
