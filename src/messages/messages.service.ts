@@ -4,7 +4,19 @@ import { PrismaService } from '../common/prisma.service';
 @Injectable()
 export class MessagesService {
   constructor(private readonly prisma: PrismaService) {}
-
+  async getAllBySchoolId(schoolId: number) {
+    return this.prisma.messages.findMany({
+      where: { school_id: schoolId },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+  }
+ async delete(id: number) {
+    return this.prisma.messages.delete({
+      where :{id}
+    });
+  }
   async getLastMessageBySchoolId(schoolId: number) {
     return this.prisma.messages.findFirst({
       where: { school_id: schoolId },
@@ -13,6 +25,7 @@ export class MessagesService {
       },
     });
   }
+
   async postMessage(message: string, school_id: number) {
   try {
    const currentDate = new Date();
