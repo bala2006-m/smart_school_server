@@ -46,6 +46,7 @@ export class SchoolsController {
             photo: photoBase64,
             createAt:school.createdAt,
             dueDate:school.dueDate,
+            student_access:school.student_access
           },
         ],
       };
