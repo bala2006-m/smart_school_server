@@ -218,5 +218,24 @@ getConsecutiveAbsents(
     
      return this.studentsService.countUsage(school_id);
   }
+  @Post('mark-left')
+async markStudentLeft(
+  @Body('school_id') school_id: number,
+  @Body('class_id') class_id: number,
+  @Body('username') username: string,
+) {
+  if (!school_id || !class_id || !username) {
+    throw new BadRequestException({
+      status: 'error',
+      message: 'school_id, class_id and username are required',
+    });
+  }
+
+  return this.studentsService.markStudentLeft(
+    school_id,
+    class_id,
+    username,
+  );
+}
 }
 

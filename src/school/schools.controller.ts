@@ -157,5 +157,34 @@ export class SchoolsController {
       );
     }
   }  
+
+  @Get('student-access')
+async fetchStudentAccess(
+  @Query('school_id') school_id: string,
+) {
+  if (!school_id || isNaN(Number(school_id))) {
+    throw new HttpException(
+      'Invalid or missing school_id',
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  return this.schoolsService.fetchStudentAccess(Number(school_id));
+}
+
+  @Post('student-access')
+async updateStudentAccess(
+  @Body('school_id') school_id: number,
+  @Body('student_access') student_access: {
+    viewHomework?: boolean;
+    events?: boolean;
+    message?: boolean;
+  },
+) {
+  return this.schoolsService.updateStudentAccess(
+    school_id,
+    student_access,
+  );
+}
 }
 

@@ -4,14 +4,13 @@ import * as bcrypt from 'bcrypt';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { not } from 'rxjs/internal/util/not';
-
+ 
 @Injectable()
 export class StudentsService {
   constructor(private prisma: PrismaService) { }
   async getStudentsWithFlatClassData(schoolId?: string) {
     try {
-      const whereClause = schoolId ? { school_id: Number(schoolId) } : {};
+      const whereClause = schoolId ? { school_id: Number(schoolId), id_left: true } : { id_left: true };
 
       // Use include only, no select at top-level
       const students = await this.prisma.student.findMany({
@@ -56,13 +55,13 @@ export class StudentsService {
       // Use include only, no select at top-level
       const students = await this.prisma.student.findMany({
         where: {
-          school_id: Number(schoolId)
+          school_id: Number(schoolId), is_left: true
         },
         select: {
           route: true
         },
         distinct: ['route'],
-        
+
 
       });
 
@@ -82,18 +81,18 @@ export class StudentsService {
           class_id: Number(classId),
           route: {
             not: 'null',
-          },
+          }, is_left: true,
         },
         select: {
           id: true,
           username: true,
           name: true,
           route: true, gender: true, mobile: true, class_id: true, school_id: true, father_name: true,
-          class:true,
-          school:{
-            select:{
-              name:true,
-              address:true
+          class: true,
+          school: {
+            select: {
+              name: true,
+              address: true
             }
           },
 
@@ -120,7 +119,7 @@ export class StudentsService {
           school_id: Number(schoolId),
           route: {
             not: 'null',
-          },
+          }, is_left: true,
         },
         select: {
           id: true,
@@ -130,9 +129,9 @@ export class StudentsService {
 
         },
         orderBy: [
-        { class_id: 'asc' },
-        { username: 'asc' },
-      ],
+          { class_id: 'asc' },
+          { username: 'asc' },
+        ],
 
       });
 
@@ -151,33 +150,33 @@ export class StudentsService {
       const students = await this.prisma.student.findMany({
         where: {
           school_id: Number(schoolId),
-          isRTE:true,
+          isRTE: true, is_left: true,
         },
         select: {
           username: true,
           name: true,
-          gender: true, mobile: true, 
-          class:{
-            select:{
-              class:true,
-              section:true
+          gender: true, mobile: true,
+          class: {
+            select: {
+              class: true,
+              section: true
             }
           }
 
 
         },
         orderBy: [
-        { class_id: 'asc' },
+          { class_id: 'asc' },
           { gender: 'asc' },
-        { username: 'asc' },
-      
+          { username: 'asc' },
 
-      ],
-      
+
+        ],
+
 
       });
 
-      return { status: 'success', totalStudents:students.length,students };
+      return { status: 'success', totalStudents: students.length, students };
     } catch (error) {
       return { status: 'error', message: 'Query failed', details: error.message };
     }
@@ -185,45 +184,45 @@ export class StudentsService {
 
 
   async fetchBusStudentsSchool(schoolId: number) {
-  try {
-    const students = await this.prisma.student.findMany({
-      where: {
-        school_id: Number(schoolId),
-        route: { not: 'null' }
-      },
-      select: {
-        username: true,
-        name: true,
-        gender: true,
-        mobile: true,
-        route:true,
-        class: {
-          select: {
-            class: true,
-            section: true
+    try {
+      const students = await this.prisma.student.findMany({
+        where: {
+          school_id: Number(schoolId),
+          route: { not: 'null' }, is_left: true
+        },
+        select: {
+          username: true,
+          name: true,
+          gender: true,
+          mobile: true,
+          route: true,
+          class: {
+            select: {
+              class: true,
+              section: true
+            }
           }
-        }
-      },
-      orderBy: [
-        { class_id: 'asc' },
-        { gender: 'asc' },
-        { username: 'asc' }
-      ]
-    });
+        },
+        orderBy: [
+          { class_id: 'asc' },
+          { gender: 'asc' },
+          { username: 'asc' }
+        ]
+      });
 
-    return {
-      status: 'success',
-      totalStudents: students.length,
-      students
-    };
-  } catch (error) {
-    return {
-      status: 'error',
-      message: 'Query failed',
-      details: error.message
-    };
+      return {
+        status: 'success',
+        totalStudents: students.length,
+        students
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: 'Query failed',
+        details: error.message
+      };
+    }
   }
-}
 
   async getCombinedStudentReport(
     schoolId: string,
@@ -239,7 +238,7 @@ export class StudentsService {
 
       // 1. Fetch all students for the school
       const students = await this.prisma.student.findMany({
-        where: { school_id: Number(schoolId) },
+        where: { school_id: Number(schoolId), is_left: true },
         orderBy: { name: 'asc' },
         select: {
           username: true,
@@ -336,8 +335,8 @@ export class StudentsService {
     } catch (error) {
       return {
         status: 'error',
-        message: `Failed to fetch combined student report ${error.message}`,
-        details: error.message,
+        message: `Failed to fetch combined student report `,//${error.message}`,
+        //details: error.message,
       };
     }
   }
@@ -345,7 +344,7 @@ export class StudentsService {
 
   async getSchoolAndClassByUsername(username: string, school_id: number) {
     return this.prisma.student.findUnique({
-      where: { username_school_id: { username: username, school_id: Number(school_id) } },
+      where: { username_school_id: { username: username, school_id: Number(school_id) }, is_left: true },
       select: {
         school_id: true,
         class_id: true,
@@ -359,7 +358,7 @@ export class StudentsService {
           username_school_id: {
             username,
             school_id: Number(school_id),
-          },
+          }, is_left: true,
         },
         select: {
           name: true,
@@ -373,8 +372,8 @@ export class StudentsService {
           father_name: true,
           DOB: true,
           route: true,
-          address:true,
-          date_of_join:true,
+          address: true,
+          date_of_join: true,
           class: {
             select: {
               id: true,
@@ -403,7 +402,7 @@ export class StudentsService {
 
   async registerStudent(dto: RegisterStudentDto) {
     const existing = await this.prisma.student.findUnique({
-      where: { username_school_id: { username: dto.username, school_id: Number(dto.school_id) } },
+      where: { username_school_id: { username: dto.username, school_id: Number(dto.school_id) }, is_left: true },
     });
 
     if (existing) {
@@ -428,7 +427,7 @@ export class StudentsService {
   }
   async deleteStudent(username: string, school_id: number) {
     const exists = await this.prisma.student.findUnique({
-      where: { username_school_id: { username: username, school_id: Number(school_id) } },
+      where: { username_school_id: { username: username, school_id: Number(school_id) }, is_left: true },
     });
 
     if (!exists) {
@@ -466,7 +465,7 @@ export class StudentsService {
 
   async getAllByClass(class_id: string) {
     const students = await this.prisma.student.findMany({
-      where: { class_id: Number(class_id) },
+      where: { class_id: Number(class_id), is_left: true },
       select: {
         id: true,
         username: true,
@@ -491,9 +490,9 @@ export class StudentsService {
   }
 
 
-    async getNonRteByClass(class_id: string) {
+  async getNonRteByClass(class_id: string) {
     const students = await this.prisma.student.findMany({
-      where: { class_id: Number(class_id) ,isRTE:false},
+      where: { class_id: Number(class_id), isRTE: false, is_left: true },
       select: {
         id: true,
         username: true,
@@ -505,11 +504,11 @@ export class StudentsService {
         father_name: true,
         DOB: true,
         route: true,
-        class:true,
-        school:{
-          select:{
-            name:true,
-            address:true,
+        class: true,
+        school: {
+          select: {
+            name: true,
+            address: true,
           }
         }
 
@@ -525,7 +524,7 @@ export class StudentsService {
   }
   async getAllByClassAndSchool(class_id: string, school_id: string) {
     const students = await this.prisma.student.findMany({
-      where: { class_id: Number(class_id), school_id: Number(school_id) },
+      where: { class_id: Number(class_id), school_id: Number(school_id), is_left: true },
       select: {
         id: true,
         username: true,
@@ -551,14 +550,14 @@ export class StudentsService {
   async countStudentsBySchool(schoolId: number): Promise<number> {
     return await this.prisma.student.count({
       where: {
-        school_id: schoolId,
+        school_id: schoolId, is_left: true,
       },
     });
   }
   async getAllStudents(school_id?: string) {
     try {
       const whereClause =
-        { school_id: Number(school_id) };
+        { school_id: Number(school_id), is_left: true };
 
       const students = await this.prisma.student.findMany({
         where: whereClause,
@@ -586,7 +585,7 @@ export class StudentsService {
       return {
         status: 'error',
         message: 'Query failed',
-        details: error.message,
+        //details: error.message,
       };
     }
   }
@@ -774,7 +773,7 @@ export class StudentsService {
     const students = await this.prisma.student.findMany({
       where: {
         username: { in: usernames },
-        ...(school_id !== undefined && { school_id: Number(school_id) }),
+        ...(school_id !== undefined && { school_id: Number(school_id) }), is_left: true,
       },
       select: {
         username: true,
@@ -907,7 +906,7 @@ export class StudentsService {
       where: {
         username,
         class_id: classId,
-        school_id: schoolId,
+        school_id: schoolId, is_left: true
       },
       select: {
         name: true,
@@ -929,7 +928,7 @@ export class StudentsService {
   ): Promise<{ status: string; student?: any; message?: string }> {
     // Find the student by composite unique key (username + school_id)
     const student = await this.prisma.student.findUnique({
-      where: { username_school_id: { username, school_id: Number(school_id) } },
+      where: { username_school_id: { username, school_id: Number(school_id) }, is_left: true },
     });
 
     if (!student) {
@@ -977,7 +976,10 @@ export class StudentsService {
 
       return { status: 'success', student: updated };
     } catch (e) {
-      return { status: 'error', message: e.message };
+      return {
+        status: 'error', //message: e.message
+
+      };
     }
   }
   async countUsage(schoolId: string): Promise<number> {
@@ -991,5 +993,63 @@ export class StudentsService {
     return grouped.length;
   }
 
+  async markStudentLeft(
+    school_id: number,
+    class_id: number,
+    username: string,
+  ) {
+    const student = await this.prisma.student.findUnique({
+      where: {
+        username_school_id: {
+          username,
+          school_id,
+        }, is_left: true
+      },
+    });
+    
+    if (!student) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Student not found',
+      });
+    }
 
+    // 🔴 Already LEFT (inactive)
+    if (student.is_left === false) {
+      return {
+        status: 'success',
+        message: 'Student already marked as left',
+      };
+    }
+
+    // Ensure left_detail is an array
+    const history: any[] = Array.isArray(student.left_detail)
+      ? student.left_detail
+      : [];
+
+    history.push({
+      class_id,
+      joined_at: student.date_of_join,
+      left_at: new Date(),
+    });
+
+    await this.prisma.student.update({
+      where: {
+        username_school_id: {
+          username,
+          school_id,
+        },
+      },
+      data: {
+        is_left: false, // ✅ mark as LEFT
+        left_detail: history,
+      },
+    });
+
+    return {
+      status: 'success',
+      message: 'Student marked as left successfully',
+      left_detail: history,
+    };
+  }
 }

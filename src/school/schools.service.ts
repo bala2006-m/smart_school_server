@@ -1,15 +1,15 @@
 // src/school/schools.service.ts
-import { Injectable ,InternalServerErrorException} from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
 
 @Injectable()
 export class SchoolsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async countStudentsBySchool(schoolId: number): Promise<number> {
     return this.prisma.student.count({
-      where: { school_id: schoolId },
+      where: { school_id: schoolId, is_left: true },
     });
   }
 
@@ -55,7 +55,8 @@ export class SchoolsService {
       totalStaff: staffCountResult.count,
       lastMessage,
       classes: classData,
-    };}
+    };
+  }
 
   async findById(id: number) {
     return await this.prisma.school.findUnique({
@@ -65,41 +66,41 @@ export class SchoolsService {
         name: true,
         address: true,
         photo: true,
-        createdAt:true,
-        dueDate:true,
+        createdAt: true,
+        dueDate: true,
       },
     });
   }
   async findAllSchools() {
-  try {
-    return await this.prisma.school.findMany({
-      select: { id: true, name: true, address: true, photo: true },
-      orderBy: { name: 'asc' },
+    try {
+      return await this.prisma.school.findMany({
+        select: { id: true, name: true, address: true, photo: true },
+        orderBy: { name: 'asc' },
+      });
+    } catch (error) {
+      throw new Error(`Failed to fetch schools: ${error.message}`);
+    }
+  }
+  async create(createSchoolDto: CreateSchoolDto, file: Express.Multer.File) {
+    const existingSchool = await this.prisma.school.findUnique({
+      where: { name: createSchoolDto.name },
     });
-  } catch (error) {
-    throw new Error(`Failed to fetch schools: ${error.message}`);
+
+    if (existingSchool) {
+      throw new InternalServerErrorException(`School is already registered`);
+    }
+
+    return this.prisma.school.create({
+      data: {
+        id: Number(createSchoolDto.schoolId),
+        name: createSchoolDto.name,
+        address: createSchoolDto.address,
+        photo: new Uint8Array(file.buffer),
+      },
+    });
   }
-}
-async create(createSchoolDto: CreateSchoolDto, file: Express.Multer.File) {
-  const existingSchool = await this.prisma.school.findUnique({
-    where: { name: createSchoolDto.name },
-  });
 
-  if (existingSchool) {
-    throw new InternalServerErrorException(`School is already registered`);
-  }
-
-  return this.prisma.school.create({
-    data: {
-      id:Number(createSchoolDto.schoolId),
-      name: createSchoolDto.name,
-      address: createSchoolDto.address,
-      photo: new Uint8Array(file.buffer),
-    },
-  });
-}
-
-async updateDueDate(schoolId: number, dueDate: Date) {
+  async updateDueDate(schoolId: number, dueDate: Date) {
     const school = await this.prisma.school.findUnique({
       where: { id: schoolId },
     });
@@ -161,6 +162,49 @@ async updateDueDate(schoolId: number, dueDate: Date) {
         dueDate: true,
       },
     });
-    
+
   }
+
+  async fetchStudentAccess(schoolId: number) {
+    const school = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: {
+        student_access: true,
+      },
+    });
+  
+    if (!school) {
+      throw new InternalServerErrorException('School not found');
+    }
+  
+    // If student_access is NULL, return defaults
+    const defaultAccess = {
+      viewHomework: true,
+      events: true,
+      message: true,
+    };
+  
+    return {
+      status: 'success',
+      student_access: school.student_access ?? defaultAccess,
+    };
+  }
+  
+  async updateStudentAccess(
+  school_id: number,
+  student_access: Record<string, boolean>,
+) {
+  await this.prisma.school.update({
+    where: { id: school_id },
+    data: {
+      student_access,
+    },
+  });
+
+  return {
+    status: 'success',
+    message: 'Student access updated successfully',
+    student_access,
+  };
+}
 }

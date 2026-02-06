@@ -315,6 +315,7 @@ model School {
   photo              Bytes?
   createdAt          DateTime?           @default(now())
   dueDate            DateTime?
+  student_access      Json @default("null")
   users              Attendance_user[]
   staff              Staff[]
   classes            Classes[]
@@ -407,6 +408,8 @@ model Student {
   address       String              @default("null")
   date_of_join  DateTime?           @default(now())
   isRTE         Boolean             @default(false)
+  is_not_left   Boolean @default(true)
+  left_detail Json @default("null")
   class         Classes             @relation(fields: [class_id], references: [id])
   school        School              @relation(fields: [school_id], references: [id])
   user          Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])

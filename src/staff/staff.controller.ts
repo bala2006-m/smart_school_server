@@ -106,6 +106,7 @@ export class StaffController {
           photo:staff.photo,
           email:staff.email,
            faculty:staff.faculty,
+           
         },
       };
     } else {
