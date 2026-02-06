@@ -42,11 +42,11 @@ export class SchoolsController {
           {
             id: school.id,
             name: school.name,
-            address: school.address,
+            address: school.address, student_access:school.student_access,
             photo: photoBase64,
             createAt:school.createdAt,
             dueDate:school.dueDate,
-            student_access:school.student_access
+           
           },
         ],
       };
