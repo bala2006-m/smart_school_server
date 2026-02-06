@@ -1,9 +1,9 @@
-import { Controller, Get, Param, ParseIntPipe ,Post,Body,Delete} from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Post, Body, Delete } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 @Controller('messages')
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(private readonly messagesService: MessagesService) { }
 
   @Get('last/:schoolId')
   async getLastMessage(@Param('schoolId', ParseIntPipe) schoolId: number) {
@@ -14,8 +14,10 @@ export class MessagesController {
     return this.messagesService.getAllBySchoolId(schoolId);
   }
   @Delete('delete/:id')
-  async delete(@Param('id', ParseIntPipe) id:number){
-    return this.messagesService.delete(id);
+  async delete(@Param('id') id: number) {
+ 
+
+    return this.messagesService.delete(+id);
   }
   @Post('post-message')
   async postMessage(@Body() dto: CreateMessageDto) {

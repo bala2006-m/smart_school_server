@@ -17,6 +17,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { InputJsonValue } from '@prisma/client/runtime/library';
 
 @Controller('staff')
 export class StaffController {
@@ -215,4 +216,55 @@ export class StaffController {
     
      return this.staffService.countUsage(school_id);
   }
+
+
+ @Put('update_class_ids')
+async updateStaffClass(
+  @Query('username') username: string,
+  @Query('school_id') school_id: number,
+  @Query('class_ids') classIds: string,
+) {
+  if (!username) {
+    return { status: 'error', message: 'Missing username' };
+  }
+
+  let parsedClassIds: any;
+
+  try {
+    parsedClassIds = JSON.parse(classIds);
+  } catch (error) {
+    throw new BadRequestException('Invalid class_ids format. Must be JSON array.');
+  }
+
+  return this.staffService.updateStaffClass(
+    username,
+    parsedClassIds,
+    school_id,
+  );
+}
+ @Put('update_class_teacher')
+async updateStaffClassTeacher(
+  @Query('username') username: string,
+  @Query('school_id') school_id: number,
+  @Query('class_teacher') classIds: string,
+) {
+  if (!username) {
+    return { status: 'error', message: 'Missing username' };
+  }
+
+  let parsedClassIds: any;
+
+  try {
+    parsedClassIds = JSON.parse(classIds);
+  } catch (error) {
+    throw new BadRequestException('Invalid class_teacher format. Must be JSON array.');
+  }
+
+  return this.staffService.updateStaffClassTeacher(
+    username,
+    parsedClassIds,
+    school_id,
+  );
+}
+
 }

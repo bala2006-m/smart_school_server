@@ -56,7 +56,7 @@ export class ClassesController {
       return {
         status: 'error',
         message: 'Failed to fetch class data',
-        details: error.message,
+        // details: error.message,
       };
     }
   }
@@ -82,7 +82,7 @@ export class ClassesController {
       return {
         status: 'error',
         message: 'Failed to fetch classes',
-        details: error.message,
+        // details: error.message,
       };
     }
   }

@@ -8,6 +8,8 @@ import { RegisterStaffDto } from './dto/register-staff.dto';
 import * as bcrypt from 'bcrypt';
 import { ChangeStaffPasswordDto } from './dto/change-password.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { InputJsonValue } from '@prisma/client/runtime/library';
+import { log } from 'console';
 
 @Injectable()
 export class StaffService {
@@ -173,6 +175,7 @@ async findByMobile(mobile: string, school_id: number) {
         mobile: true,
         class_ids: true,
         faculty:true,
+        class_teacher:true
       },
       orderBy: { name: 'asc' },
     });
@@ -207,6 +210,102 @@ async findByMobile(mobile: string, school_id: number) {
       data: updateData,
     });
   }
+ async updateStaffClass(
+  username: string,
+  classIds: InputJsonValue,
+  school_id: number
+) {
+  const staff = await this.prisma.staff.findUnique({
+    where: {
+      username_school_id: {
+        username,
+        school_id: Number(school_id),
+      },
+    },
+  });
+
+  if (!staff) {
+    return { status: 'error', message: 'Staff not found' };
+  }
+
+  const newClassIds: number[] = Array.isArray(classIds)
+    ? (classIds as number[])
+    : [];
+
+  const existingClassTeacher: number[] = Array.isArray(staff.class_teacher)
+    ? (staff.class_teacher as number[])
+    : [];
+
+  // Check if any class_teacher is missing in new class_ids
+  const invalidTeachers = existingClassTeacher.filter(
+    (id) => !newClassIds.includes(id)
+  );
+
+  if (invalidTeachers.length > 0) {
+    return {
+      status: 'error',
+      message: `class assigned as class teacher: ${invalidTeachers.join(', ')}`,
+    };
+  }
+
+  return this.prisma.staff.update({
+    where: {
+      username_school_id: {
+        username,
+        school_id: Number(school_id),
+      },
+    },
+    data: {
+      class_ids: newClassIds,
+    },
+  });
+}
+
+
+async updateStaffClassTeacher(
+  username: string,
+  classIds: number[],
+  school_id: number
+) {
+  const staff = await this.prisma.staff.findUnique({
+    where: {
+      username_school_id: {
+        username,
+        school_id: Number(school_id),
+      },
+    },
+  });
+
+  if (!staff) {
+    return { status: 'error', message: 'Staff not found' };
+  }
+
+  const existingClassIds: number[] = Array.isArray(staff.class_ids)
+    ? (staff.class_ids as number[])
+    : [];
+
+  const teacherClassIds: number[] = Array.isArray(classIds)
+    ? classIds
+    : [];
+
+  const updatedClassIds = Array.from(
+    new Set([...existingClassIds, ...teacherClassIds])
+  );
+
+  return this.prisma.staff.update({
+    where: {
+      username_school_id: {
+        username,
+        school_id: Number(school_id),
+      },
+    },
+    data: {
+      class_teacher: teacherClassIds,
+      class_ids: updatedClassIds,
+    },
+  });
+}
+
 
   /** ---------------- DELETE STAFF ---------------- */
   async deleteStaff(username: string, school_id: number) {

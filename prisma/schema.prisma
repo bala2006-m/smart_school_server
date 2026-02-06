@@ -359,6 +359,7 @@ model Classes {
   school            School              @relation(fields: [school_id], references: [id])
   holidays          Holidays[]          @relation("HolidayClasses")
   staff             Staff[]             @relation("class_ids")
+  class_teacher             Staff[]             @relation("class_teacher")
   students          Student[]
   studentAttendance StudentAttendance[]
   classTimetables   ClassTimetable[]
@@ -431,11 +432,14 @@ model Staff {
   class_ids   Json    @default("null")
   photo       Bytes?  @default("null")
   faculty     String  @default("null")
+  class_teacher   Json    @default("null")
+
 
   school      School            @relation(fields: [school_id], references: [id])
   user        Attendance_user   @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
   attendances StaffAttendance[]
   classes     Classes[]         @relation("class_ids")
+  classes_teacher     Classes[]         @relation("class_teacher")
 
   @@unique([username, school_id]) // ✅ username unique within school
   @@unique([mobile, school_id]) // ✅ mobile unique within school
