@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-
+ import { Prisma } from '@prisma/client';
 @Injectable()
 export class AdminService {
   constructor(private prisma: PrismaService) {}
@@ -86,7 +86,61 @@ async fetchAdminAndSchoolData(username: string, schoolId: number) {
       photo: admin.photo ? Buffer.from(admin.photo).toString('base64') : null,
     }));
   }
+async getAccess(username: string, school_id: number) {
+    
+      const admin = await this.prisma.admin.findUnique({
+        where: {
+          username_school_id: { username, school_id: Number(school_id) },
+        },
+        select: {
+          id:true,
+      access:true
+        },
+      });
 
+      if (!admin) return null;
+    const defaultAccess = {
+      staff: true,
+      student: true,
+      manage: true,
+      access: true,
+      termFees: true,
+      collectFees: true,
+      rteFees: true,
+      busFees: true,
+      account: true,
+      services: true,
+      bulkUpload: true,
+      viewProfiles: true,
+      reports: true,
+
+    };
+      return {
+         status: 'success',
+      access:admin.access??defaultAccess,
+      };
+    
+
+  //   // fetch all admins
+  //   const admins = await this.prisma.admin.findMany({
+  //     select: {
+  //       name: true,
+  //       username: true,
+  //       designation: true,
+  //       mobile: true,
+  //       email: true,
+  //       photo: true,
+  //       school_id: true,
+  //       gender: true,
+  //     },
+  //     orderBy: { name: 'asc' },
+  //   });
+
+  //   return admins.map((admin) => ({
+  //     ...admin,
+  //     photo: admin.photo ? Buffer.from(admin.photo).toString('base64') : null,
+  //   }));
+   }
 
 async getAllAdmin( school_id?: number) {
     
@@ -150,4 +204,52 @@ async getAllAdmin( school_id?: number) {
       throw error;
     }
   }
+
+  
+
+async updateAccess(
+  username: string,
+  school_id: number,
+  access: Prisma.InputJsonValue,
+) {
+  const existingAdmin = await this.prisma.admin.findUnique({
+    where: {
+      username_school_id: {
+        username,
+        school_id: Number(school_id),
+      },
+    },
+  });
+
+  if (!existingAdmin) {
+    throw new NotFoundException(
+      `Admin with username "${username}" and school_id "${school_id}" not found.`,
+    );
+  }
+
+  try {
+    await this.prisma.admin.update({
+      where: {
+        username_school_id: {
+          username,
+          school_id: Number(school_id),
+        },
+      },
+      data: {
+        access: access, // must be JSON object
+      },
+    });
+
+    return { message: 'Access updated successfully' };
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      throw new BadRequestException(
+        'Mobile or username already exists within this school.',
+      );
+    }
+    throw error;
+  }
+}
+
+
 }

@@ -436,7 +436,7 @@ model Staff {
   photo       Bytes?  @default("null")
   faculty     String  @default("null")
   class_teacher   Json    @default("null")
-
+  access      Json @default("null")
 
   school      School            @relation(fields: [school_id], references: [id])
   user        Attendance_user   @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
@@ -459,7 +459,7 @@ model Admin {
   photo       Bytes?
   username    String
   school_id   Int
-
+  access      Json @default("null")
   school        School          @relation(fields: [school_id], references: [id])
   user          Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
   studentFees   StudentFees[]

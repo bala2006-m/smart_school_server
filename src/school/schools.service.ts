@@ -178,7 +178,7 @@ export class SchoolsService {
       throw new InternalServerErrorException('School not found');
     }
   
-    // If student_access is NULL, return defaults
+    
     const defaultAccess = {
       viewHomework: true,
       events: true,
