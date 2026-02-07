@@ -10,7 +10,7 @@ export class StudentsService {
   constructor(private prisma: PrismaService) { }
   async getStudentsWithFlatClassData(schoolId?: string) {
     try {
-      const whereClause = schoolId ? { school_id: Number(schoolId), id_left: true } : { id_left: true };
+      const whereClause = schoolId ? { school_id: Number(schoolId), is_left: true } : { is_left: true };
 
       // Use include only, no select at top-level
       const students = await this.prisma.student.findMany({
