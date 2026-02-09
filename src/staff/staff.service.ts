@@ -10,6 +10,7 @@ import { ChangeStaffPasswordDto } from './dto/change-password.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { InputJsonValue } from '@prisma/client/runtime/library';
 import { log } from 'console';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class StaffService {
@@ -343,4 +344,75 @@ async countUsage(schoolId: string): Promise<number> {
   return grouped.length;
 }
 
+async getAccess(username: string, school_id: number) {
+    
+      const staff = await this.prisma.staff.findUnique({
+        where: {
+          username_school_id: { username, school_id: Number(school_id) },
+        },
+        select: {
+          id:true,
+      access:true
+        },
+      });
+
+      if (!staff) return null;
+    const defaultAccess = {
+      student: true,
+      myself: true,
+      manage: true,
+      services:true,
+
+    };
+      return {
+         status: 'success',
+      access:staff.access??defaultAccess,
+      };
+    
+   }
+
+   async updateAccess(
+     username: string,
+     school_id: number,
+     access: Prisma.InputJsonValue,
+   ) {
+     const existingStaff = await this.prisma.staff.findUnique({
+       where: {
+         username_school_id: {
+           username,
+           school_id: Number(school_id),
+         },
+       },
+     });
+   
+     if (!existingStaff) {
+       throw new NotFoundException(
+         `Staff with username "${username}" and school_id "${school_id}" not found.`,
+       );
+     }
+   
+     try {
+       await this.prisma.staff.update({
+         where: {
+           username_school_id: {
+             username,
+             school_id: Number(school_id),
+           },
+         },
+         data: {
+           access: access, // must be JSON object
+         },
+       });
+   
+       return { message: 'Access updated successfully' };
+     } catch (error: any) {
+       if (error.code === 'P2002') {
+         throw new BadRequestException(
+           'Mobile or username already exists within this school.',
+         );
+       }
+       throw error;
+     }
+   }
+   
 }

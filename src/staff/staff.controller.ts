@@ -6,18 +6,20 @@ import {
   Put,
   Delete,
   Query,
+  Patch
 } from '@nestjs/common';
 import { StaffService } from './staff.service';
 import { RegisterStaffDto } from './dto/register-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
-import { ChangeStaffPasswordDto } from './dto/change-password.dto';
+// import { ChangeStaffPasswordDto } from './dto/change-password.dto';
 import { Param } from '@nestjs/common';
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { InputJsonValue } from '@prisma/client/runtime/library';
+// import { InputJsonValue } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 @Controller('staff')
 export class StaffController {
@@ -266,6 +268,31 @@ async updateStaffClassTeacher(
     parsedClassIds,
     school_id,
   );
+}
+
+@Get('fetch_access')
+  async fetchAccess(@Query('username') username: string,@Query('school_id') school_id:number) {
+    try {
+      const data = await this.staffService.getAccess(username,school_id);
+      return {
+        status: 'success',
+        data,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
+
+    @Patch('update_access/:username/:school_id')
+async updateAcess(
+  @Param('username') username: string,
+  @Param('school_id') school_id: number,
+  @Body() access: Prisma.InputJsonValue,
+) {
+  return this.staffService.updateAccess(username, school_id, access);
 }
 
 }
