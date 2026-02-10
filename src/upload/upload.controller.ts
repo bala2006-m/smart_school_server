@@ -15,6 +15,7 @@ import { extname, join } from 'path';
 import * as fs from 'fs';
 import { PrismaService } from '../common/prisma.service';
 import { log } from 'console';
+import { title } from 'process';
 
 @Controller('upload')
 export class UploadController {
@@ -148,7 +149,34 @@ export class UploadController {
 
     return { images, videos };
   }
+@Get('titles/image/:schoolId')
+  async getTitlesSchoolIm(@Param('schoolId') schoolId: string) {
+    const records = await this.prisma.imageAndVideos.findMany({
+      where: { school_id: parseInt(schoolId),type:'IMAGE' },
+      select:{
+        title:true
+      },
+      distinct:['title'],
+      orderBy: { title: 'desc' },
+    });
 
+   
+    return records;
+  }
+  @Get('titles/video/:schoolId')
+  async getTitlesSchoolVid(@Param('schoolId') schoolId: string) {
+    const records = await this.prisma.imageAndVideos.findMany({
+      where: { school_id: parseInt(schoolId),type:'VIDEO' },
+      select:{
+        title:true
+      },
+      distinct:['title'],
+      orderBy: { title: 'desc' },
+    });
+
+   
+    return records;
+  }
   // 🔹 DELETE /upload/:schoolId/:filename (Delete image from FS & DB)
   @Delete(':schoolId/:filename')
   async deleteImage(
