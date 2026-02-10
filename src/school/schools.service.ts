@@ -22,7 +22,7 @@ export class SchoolsService {
 
   async getLastMessageBySchoolId(schoolId: number) {
     return this.prisma.messages.findFirst({
-      where: { school_id: schoolId },
+      where: { school_id: schoolId,role:'admin' },
       orderBy: { id: 'desc' },
     });
   }

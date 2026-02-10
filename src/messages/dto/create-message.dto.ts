@@ -8,4 +8,7 @@ export class CreateMessageDto {
   @IsNumber()
    @IsNotEmpty()
   schoolId: number;
+
+  @IsString()
+  role: string;
 }

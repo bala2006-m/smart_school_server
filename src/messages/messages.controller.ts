@@ -9,6 +9,10 @@ export class MessagesController {
   async getLastMessage(@Param('schoolId', ParseIntPipe) schoolId: number) {
     return this.messagesService.getLastMessageBySchoolId(schoolId);
   }
+    @Get('last_role/:schoolId/:role')
+  async getLastMessageRole(@Param('schoolId', ParseIntPipe) schoolId: number,@Param('role')role:string) {
+    return this.messagesService.getLastMessageBySchoolIdRole(schoolId,role.toLocaleLowerCase());
+  }
   @Get('all/:schoolId')
   async getAllMessage(@Param('schoolId', ParseIntPipe) schoolId: number) {
     return this.messagesService.getAllBySchoolId(schoolId);
@@ -21,6 +25,6 @@ export class MessagesController {
   }
   @Post('post-message')
   async postMessage(@Body() dto: CreateMessageDto) {
-    return this.messagesService.postMessage(dto.messages, dto.schoolId);
+    return this.messagesService.postMessage(dto.messages, dto.schoolId ,dto.role);
   }
 }

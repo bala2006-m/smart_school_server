@@ -25,8 +25,15 @@ export class MessagesService {
       },
     });
   }
-
-  async postMessage(message: string, school_id: number) {
+ async getLastMessageBySchoolIdRole(schoolId: number,role:string) {
+    return this.prisma.messages.findFirst({
+      where: { school_id: schoolId ,role},
+      orderBy: {
+        id: 'desc',
+      },
+    });
+  }
+  async postMessage(message: string, school_id: number,role:string) {
   try {
    const currentDate = new Date();
 
@@ -46,6 +53,7 @@ const formattedDateTime = `${year}-${month}-${day} ${hours}:${minutes}`;
         messages: message,
         school_id: school_id,
         date: formattedDateTime,
+        role:role
       },
     });
 

@@ -14,11 +14,22 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import * as fs from 'fs';
 import { PrismaService } from '../common/prisma.service';
+import { log } from 'console';
 
 @Controller('upload')
 export class UploadController {
   constructor(private prisma: PrismaService) {}
-
+  // 🔹 DELETE /upload/video/:id
+  @Delete('videos/:id')
+  async deleteVideo(@Param('id') id: string) {
+    
+  
+    const res=  await this.prisma.imageAndVideos.delete({
+      where: { id:Number(id) },
+    });
+ 
+    return { message: 'Video deleted successfully' };
+  }
   // 🔹 POST /upload (Image upload)
   @Post()
   @UseInterceptors(
@@ -158,14 +169,16 @@ export class UploadController {
 
     return { message: 'Image deleted successfully' };
   }
-
-  // 🔹 DELETE /upload/video/:id
-  @Delete('video/:id')
-  async deleteVideo(@Param('id') id: string) {
-    await this.prisma.imageAndVideos.delete({
-      where: { id: parseInt(id) },
+@Delete('image/:filename')
+  async deleteImages(
+    @Param('filename') filename: string,
+  ) {
+ 
+    await this.prisma.imageAndVideos.deleteMany({
+      where: { id: Number(filename) },
     });
 
-    return { message: 'Video deleted successfully' };
+    return { message: 'Image deleted successfully' };
   }
+
 }
