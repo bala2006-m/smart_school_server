@@ -11,15 +11,17 @@ import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CreateStaffAttendanceDto } from './dto/create-staff-attendance.dto';
 import { FetchStudentAttendanceDto } from './dto/fetch-student-attendance.dto';
 import { IsNumber } from 'class-validator';
+import { EnableSync } from '../common/sync/sync.decorator';
+
 @Controller('attendance')
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
-@Get('student/fetch_stu_absentees_school')
+  constructor(private readonly attendanceService: AttendanceService) { }
+  @Get('student/fetch_stu_absentees_school')
   async getAbsenteesSchool(
     @Query('date') date: string,
     @Query('school_id') schoolId: string,
   ) {
-    if (!date || !schoolId ) {
+    if (!date || !schoolId) {
       throw new BadRequestException('Missing parameters');
     }
 
@@ -47,7 +49,7 @@ export class AttendanceController {
 
 
 
-  
+
   @Get('fetch_stu_absent_all')
   async getAbsentStudents(
     @Query('date') date: string,
@@ -82,7 +84,7 @@ export class AttendanceController {
     };
   }
 
-@Get('check_attendance_status')
+  @Get('check_attendance_status')
   async checkAttendanceStatus(
     @Query('school_id') schoolId: string,
     @Query('class_id') classId: string,
@@ -106,15 +108,15 @@ export class AttendanceController {
     };
   }
 
-  
-@Get('check_attendance_status_session')
+
+  @Get('check_attendance_status_session')
   async checkAttendanceStatusSession(
     @Query('school_id') schoolId: string,
     @Query('class_id') classId: string,
     @Query('date') date: string,
     @Query('session') session: 'FN' | 'AN',
   ) {
-    if (!schoolId || !classId || !date||!session) {
+    if (!schoolId || !classId || !date || !session) {
       throw new BadRequestException(
         'Missing required parameters: school_id, class_id,session, or date',
       );
@@ -133,6 +135,7 @@ export class AttendanceController {
     };
   }
   @Post('post_student_attendance')
+  @EnableSync('StudentAttendance', 'create')
   async markStudent(@Body() dto: CreateAttendanceDto) {
     return this.attendanceService.markStudentAttendance(dto);
   }
@@ -208,16 +211,16 @@ export class AttendanceController {
       return { status: 'error', message: 'Missing year' };
     }
 
-    return this.attendanceService.getMonthlySummary(username, +month, +year,school_id);
+    return this.attendanceService.getMonthlySummary(username, +month, +year, school_id);
   }
 
   @Get('student/betweensummary')
   async getStudentSummary(
     @Query('username') username: string,
     @Query('fromDate') fromDate: string,
-    @Query('toDate') toDate: string,@Query('school_id') school_id: number
+    @Query('toDate') toDate: string, @Query('school_id') school_id: number
   ) {
-    
+
     // Basic validation can be enhanced further
     if (!username) {
       return { status: 'error', message: 'Missing usernam' };
@@ -246,32 +249,34 @@ export class AttendanceController {
       return { status: 'error', message: 'Missing username or date' };
     }
 
-    return this.attendanceService.getDailySummary(username, date,school_id);
+    return this.attendanceService.getDailySummary(username, date, school_id);
   }
 
   @Post('staff')
+  @EnableSync('StaffAttendance', 'create')
   async markStaffAttendance(@Body() dto: CreateStaffAttendanceDto) {
     return this.attendanceService.markStaffAttendance(dto);
   }
   @Get('staff/daily-summary')
   async getStaffDaily(
     @Query('username') username: string,
-    @Query('school_id') school_id:number,
+    @Query('school_id') school_id: number,
     @Query('date') date: string,
   ) {
     if (!username || !date) {
       return { status: 'error', message: 'Missing username or date' };
     }
 
-    return this.attendanceService.getStaffDailySummary(username, date,school_id);
+    return this.attendanceService.getStaffDailySummary(username, date, school_id);
   }
   @Get('staff/monthly')
   async getStaffMonthly(
     @Query('username') username: string,
     @Query('month') month: string,
     @Query('year') year: string,
+    @Query('school_id') school_id: number,
   ) {
-    return this.attendanceService.getStaffMonthly(username, +month, +year);
+    return this.attendanceService.getStaffMonthly(username, +month, +year, school_id);
   }
   @Get('staff/fetch_staff_attendance')
   async fetchStaffAttendance(
@@ -292,8 +297,9 @@ export class AttendanceController {
     @Query('username') username: string,
     @Query('fromDate') fromDate: string,
     @Query('toDate') toDate: string,
+    @Query('school_id') school_id: number,
   ) {
-    
+
     // Basic validation can be enhanced further
     if (!username) {
       return { status: 'error', message: 'Missing usernam' };
@@ -308,6 +314,7 @@ export class AttendanceController {
       username,
       fromDate,
       toDate,
+      school_id,
     );
   }
 

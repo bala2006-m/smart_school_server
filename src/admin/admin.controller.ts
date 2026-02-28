@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Body,Query } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Body,Query ,Post} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { Prisma } from '@prisma/client';
@@ -85,6 +85,30 @@ async updateAcess(
   @Body() access: Prisma.InputJsonValue,
 ) {
   return this.adminService.updateAccess(username, school_id, access);
+}
+
+@Get('fetch_cat_button')
+  async fetchCats(@Query('username') username: string,@Query('school_id') school_id:number) {
+    try {
+      const data = await this.adminService.getCats(username,school_id);
+      return {
+        status: 'success',
+        data,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
+ @Patch('update_cat_button/:username/:school_id')
+async updateCats(
+  @Param('username') username: string,
+  @Param('school_id') school_id: number,
+  @Body() all: Prisma.InputJsonValue,
+) {
+  return this.adminService.updateCats(username, school_id,all);
 }
 
 }

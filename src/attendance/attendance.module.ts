@@ -3,8 +3,11 @@ import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
 import { PrismaService } from '../common/prisma.service';
 
+import { SyncModule } from '../common/sync/sync.module';
+
 @Module({
+  imports: [SyncModule],
   controllers: [AttendanceController],
   providers: [AttendanceService, PrismaService],
 })
-export class AttendanceModule {}
+export class AttendanceModule { }

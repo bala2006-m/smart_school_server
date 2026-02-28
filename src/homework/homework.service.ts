@@ -1,22 +1,26 @@
-import {
-  Injectable,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { CreateHomeworkDto } from './dto/create-homework.dto';
 import { join } from 'path';
 import * as fs from 'fs';
 
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
+
 @Injectable()
 export class HomeworkService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   // ────────────────────────────────────────────────
   // FETCH HOMEWORK BY CLASS
   // ────────────────────────────────────────────────
   async fetchHomeworkByClassId(schoolId: number, classId: number) {
-    return this.prisma.homework.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).homework.findMany({
       where: { school_id: Number(schoolId), class_id: Number(classId) },
       orderBy: { id: 'desc' },
     });
@@ -26,7 +30,8 @@ export class HomeworkService {
   // FETCH HOMEWORK BY STAFF
   // ────────────────────────────────────────────────
   async fetchHomeworkByStaff(schoolId: number, classId: number, staff?: string) {
-    return this.prisma.homework.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).homework.findMany({
       where: {
         school_id: Number(schoolId),
         class_id: Number(classId),
@@ -40,11 +45,12 @@ export class HomeworkService {
   // CREATE HOMEWORK WITHOUT FILE
   // ────────────────────────────────────────────────
   async create(data: CreateHomeworkDto) {
-    return this.prisma.homework.create({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).homework.create({
       data: {
         ...data,
-        school_id:Number(data.school_id),
-        class_id:Number(data.class_id),
+        school_id: Number(data.school_id),
+        class_id: Number(data.class_id),
         assigned_date: new Date(data.assigned_date),
         due_date: new Date(data.due_date),
         attachments: [],
@@ -55,28 +61,30 @@ export class HomeworkService {
   // ────────────────────────────────────────────────
   // CREATE HOMEWORK WITH FILE UPLOAD
   // ────────────────────────────────────────────────
- async createWithFile(
-  data: CreateHomeworkDto,
-  schoolId: string,
-  classId: string,
-  file: Express.Multer.File,
-) {
-  if (!file) throw new BadRequestException('File is required');
+  async createWithFile(
+    data: CreateHomeworkDto,
+    schoolId: string,
+    classId: string,
+    file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('File is required');
 
-  // File is already stored by Multer → Now just prepare URL
-  const imageUrl = `https://smartschoolserver.ramchintech.com/images/homework/${schoolId}/${classId}/${file.filename}`;
+    // File is already stored by Multer → Now just prepare URL
+    const imageUrl = `https://smartschoolserver.ramchintech.com/images/homework/${schoolId}/${classId}/${file.filename}`;
 
-  return this.prisma.homework.create({
-    data: {
-      ...data,
-      school_id: Number(data.school_id),
-      class_id: Number(data.class_id),
-      assigned_date: new Date(data.assigned_date),
-      due_date: new Date(data.due_date),
-      attachments: [imageUrl],
-    },
-  });
-}
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
+    return (client as any).homework.create({
+      data: {
+        ...data,
+        school_id: Number(data.school_id),
+        class_id: Number(data.class_id),
+        assigned_date: new Date(data.assigned_date),
+        due_date: new Date(data.due_date),
+        attachments: [imageUrl],
+      },
+    });
+  }
 
 
 
@@ -85,7 +93,9 @@ export class HomeworkService {
   // DELETE HOMEWORK AND ATTACHED IMAGE FILES
   // ────────────────────────────────────────────────
   async deleteHomeworkById(id: number) {
-    const homework = await this.prisma.homework.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
+    const homework = await (client as any).homework.findUnique({
       where: { id: Number(id) },
     });
 
@@ -114,7 +124,7 @@ export class HomeworkService {
       }
     }
 
-    return this.prisma.homework.delete({
+    return (client as any).homework.delete({
       where: { id: Number(id) },
     });
   }

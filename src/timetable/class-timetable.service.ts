@@ -1,10 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { DayOfWeek } from '@prisma/client';
 
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
+
 @Injectable()
 export class ClassTimetableService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   // async saveTimetables(data: string) {
   //   const lines = data
@@ -42,6 +49,7 @@ export class ClassTimetableService {
 
   //parthi Add
   async saveTimetables(data: string) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     const lines = data
       .split('\n')
       .map((line) => line.trim())
@@ -60,7 +68,7 @@ export class ClassTimetableService {
 
     const results: any[] = [];
     for (const entry of entries) {
-      const record = await this.prisma.classTimetable.upsert({
+      const record = await (client as any).classTimetable.upsert({
         where: {
           schoolId_classesId_dayOfWeek_periodNumber: {
             schoolId: entry.schoolId,
@@ -80,13 +88,14 @@ export class ClassTimetableService {
   }
 
   async getTimetable(schoolId: number, classesId: number) {
-    const rows = await this.prisma.classTimetable.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const rows = await (client as any).classTimetable.findMany({
       where: {
         schoolId,
         classesId,
       },
       select: {
-        id :true,
+        id: true,
         dayOfWeek: true,
         periodNumber: true,
         subject: true,
@@ -107,7 +116,7 @@ export class ClassTimetableService {
       }
 
       grouped[day].push({
-        id:row.id,
+        id: row.id,
         period: row.periodNumber,
         subject: row.subject,
         session: row.periodNumber <= 4 ? 'FN' : 'AN',
@@ -127,7 +136,8 @@ export class ClassTimetableService {
 
 
   async findByClass(schoolId: number, classesId: number) {
-    return this.prisma.classTimetable.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).classTimetable.findMany({
       where: {
         schoolId,
         classesId,
@@ -137,10 +147,11 @@ export class ClassTimetableService {
       },
     });
   }
-  async delete(id :string) {
-    return this.prisma.classTimetable.delete({
+  async delete(id: string) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).classTimetable.delete({
       where: {
-        id:Number(id)
+        id: Number(id)
       },
     });
   }

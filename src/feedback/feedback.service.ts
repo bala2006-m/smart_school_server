@@ -1,30 +1,38 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import * as nodemailer from 'nodemailer';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class FeedbackService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async createFeedback(data: {
     name: string;
-    username:string;
+    username: string;
     email: string;
     feedback: string;
     school_id: number;
     class_id: number;
   }) {
-    return this.prisma.feedback.create({ data });
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).feedback.create({ data });
   }
 
   async getFeedbackBySchool(params: {
     school_id: number;
   }) {
-    const { school_id} = params;
-const schoolId = Number(school_id);
-    const where: any = { school_id:schoolId };
+    const { school_id } = params;
+    const schoolId = Number(school_id);
+    const where: any = { school_id: schoolId };
 
-    return this.prisma.feedback.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).feedback.findMany({
       where,
       orderBy: { id: 'desc' },
     });
@@ -32,7 +40,11 @@ const schoolId = Number(school_id);
 }
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async createTickets(data1: {
     username: string;
@@ -42,7 +54,8 @@ export class TicketsService {
     school_id: number;
   }) {
     // 1. Create ticket in DB
-    const ticket = await this.prisma.tickets.create({ data: data1 });
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const ticket = await (client as any).tickets.create({ data: data1 });
 
     // 2. Configure Nodemailer transporter
     const transporter = nodemailer.createTransport({
@@ -94,7 +107,8 @@ export class TicketsService {
     const schoolId = Number(school_id);
     const where: any = { school_id: schoolId };
 
-    return this.prisma.tickets.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).tickets.findMany({
       where,
       orderBy: { id: 'desc' },
     });

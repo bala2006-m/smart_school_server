@@ -69,6 +69,18 @@ export class ExamMarksController {
       title
     });
   }
+
+   @Get('fetch_classes')
+  async findAllClasses(
+    @Query('school_id') schoolId: string,
+     @Query('title') title: string,
+
+  ) {
+    return this.examMarksService.findAllClasses({
+      schoolId: Number(schoolId) ,
+      title
+    });
+  }
 @Get('fetch_titles')
   async findTitles(
     @Query('school_id') schoolId?: string,

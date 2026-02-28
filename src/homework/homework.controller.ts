@@ -16,10 +16,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import * as fs from 'fs';
+import { EnableSync } from '../common/sync/sync.decorator';
 
 @Controller('homework')
 export class HomeworkController {
-  constructor(private readonly homeworkService: HomeworkService) {}
+  constructor(private readonly homeworkService: HomeworkService) { }
 
   // ────────────────────────────────────────────────
   // FETCH HOMEWORK FOR CLASS
@@ -32,7 +33,7 @@ export class HomeworkController {
     return this.homeworkService.fetchHomeworkByClassId(schoolId, classId);
   }
 
-@Get('fetch_homework_by_class_id/:schoolId/:classId')
+  @Get('fetch_homework_by_class_id/:schoolId/:classId')
   async fetchHomeworkByClassIds(
     @Param('schoolId', ParseIntPipe) schoolId: number,
     @Param('classId', ParseIntPipe) classId: number,
@@ -59,6 +60,7 @@ export class HomeworkController {
   // CREATE HOMEWORK (WITHOUT FILE)
   // ────────────────────────────────────────────────
   @Post('create')
+  @EnableSync('Homework', 'create')
   async create(@Body() createHomeworkDto: CreateHomeworkDto) {
     return this.homeworkService.create(createHomeworkDto);
   }
@@ -66,48 +68,50 @@ export class HomeworkController {
   // ────────────────────────────────────────────────
   // CREATE HOMEWORK WITH FILE (IMAGE/PDF/ETC)
   // ────────────────────────────────────────────────
- @Post('create_with_file/:schoolId/:classId')
-@UseInterceptors(
-  FileInterceptor('file', {
-    storage: diskStorage({
-      destination: (req, file, callback) => {
-        const schoolId = req.params.schoolId;
-        const classId = req.params.classId;
+  @Post('create_with_file/:schoolId/:classId')
+  @EnableSync('Homework', 'create')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (req, file, callback) => {
+          const schoolId = req.params.schoolId;
+          const classId = req.params.classId;
 
-        if (!schoolId || !classId) {
-          return callback(new Error('Missing schoolId or classId'), '');
-        }
+          if (!schoolId || !classId) {
+            return callback(new Error('Missing schoolId or classId'), '');
+          }
 
-        const uploadPath = join('/var/www/images/homework', schoolId, classId);
+          const uploadPath = join('/var/www/images/homework', schoolId, classId);
 
-        if (!fs.existsSync(uploadPath)) {
-          fs.mkdirSync(uploadPath, { recursive: true });
-        }
+          if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+          }
 
-        callback(null, uploadPath);
-      },
-      filename: (req, file, callback) => {
-        const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = extname(file.originalname);
-        callback(null, uniqueName + ext);
-      },
+          callback(null, uploadPath);
+        },
+        filename: (req, file, callback) => {
+          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          callback(null, uniqueName + ext);
+        },
+      }),
     }),
-  }),
-)
-async createWithFile(
-  @Body() data: CreateHomeworkDto,
-  @Param('schoolId') schoolId: string,
-  @Param('classId') classId: string,
-  @UploadedFile() file: Express.Multer.File,
-) {
-  return this.homeworkService.createWithFile(data, schoolId, classId, file);
-}
+  )
+  async createWithFile(
+    @Body() data: CreateHomeworkDto,
+    @Param('schoolId') schoolId: string,
+    @Param('classId') classId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.homeworkService.createWithFile(data, schoolId, classId, file);
+  }
 
 
   // ────────────────────────────────────────────────
   // DELETE HOMEWORK BY ID (also deletes file)
   // ────────────────────────────────────────────────
   @Delete('delete/:id')
+  @EnableSync('Homework', 'delete')
   async deleteHomework(@Param('id', ParseIntPipe) id: number) {
     return this.homeworkService.deleteHomeworkById(id);
   }

@@ -1,33 +1,50 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { DatabaseConfigService } from './database/database.config';
 
 @Injectable()
-export class PrismaService extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy {
-
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-// constructor() {
-//     super({
-//       datasources: {
-//         db: {
-//           url:'mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school',
-//         },
-//       },
-//     });
-//   }
+
+  constructor(private readonly dbConfig: DatabaseConfigService) {
+    super();
+
+    // Return a Proxy that intercepts all PrismaClient method calls and routes them to 
+    // the appropriate database client (cloud or local dual-write proxy) dynamically.
+    return new Proxy(this, {
+      get(target: any, prop: string | symbol) {
+        // Handle internal Prisma properties typically accessed by NestJS or Prisma itself
+        if (
+          typeof prop === 'symbol' ||
+          prop === 'onModuleInit' ||
+          prop === 'onModuleDestroy' ||
+          prop === 'logger' ||
+          prop === 'dbConfig' ||
+          (typeof prop === 'string' && (prop.startsWith('$') || prop.startsWith('_')))
+        ) {
+          // Bind function to target if it is a function to preserve `this` context
+          const value = target[prop];
+          if (typeof value === 'function') {
+            return value.bind(target);
+          }
+          return value;
+        }
+
+        // For actual model calls (e.g. prisma.homework.findMany)
+        // Delegate dynamically to what DatabaseConfigService provides
+        const dynamicClient = target.dbConfig.getDatabaseClient();
+        return dynamicClient[prop];
+      }
+    });
+  }
 
   async onModuleInit() {
-    try {
-      await this.$connect();
-      this.logger.log('✅ Successfully connected to the database');
-    } catch (error) {
-      this.logger.error('❌ Failed to connect to the database', error.stack || error.message);
-      throw error; // Let NestJS crash app if DB is not connected
-    }
+    // The DatabaseConfigService handles actual connection logic and retries, 
+    // so PrismaService doesn't need to manually throw an error here.
+    this.logger.log('✅ PrismaService initialized as global dynamic proxy');
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
-    this.logger.log('🛑 Disconnected from the database');
+    this.logger.log('🛑 PrismaService proxy destroyed');
   }
 }

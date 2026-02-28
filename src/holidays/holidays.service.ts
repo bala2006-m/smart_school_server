@@ -1,16 +1,23 @@
-import { NotFoundException,Injectable, InternalServerErrorException,ConflictException } from '@nestjs/common';
+import { NotFoundException, Injectable, InternalServerErrorException, ConflictException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { DeleteHolidayDto } from './dto/delete-holiday.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class HolidaysService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async addHoliday(dto: CreateHolidayDto) {
     try {
+      const client = this.dbConfig.getDatabaseClient(this.request);
       // Optional: prevent duplicate entries
-      const existing = await this.prisma.holidays.findFirst({
+      const existing = await (client as any).holidays.findFirst({
         where: {
           date: new Date(dto.date),
           school_id: dto.school_id,
@@ -21,7 +28,7 @@ export class HolidaysService {
         throw new ConflictException('Holiday already exists for this date');
       }
 
-      const holiday = await this.prisma.holidays.create({
+      const holiday = await (client as any).holidays.create({
         data: {
           date: new Date(dto.date),
           reason: dto.reason,
@@ -43,10 +50,11 @@ export class HolidaysService {
   }
 
 
-async fetchHolidays(school_id: string) {
+  async fetchHolidays(school_id: string) {
     const schoolIdInt = Number(school_id);
+    const client = this.dbConfig.getDatabaseClient(this.request);
 
-    const holidays = await this.prisma.holidays.findMany({
+    const holidays = await (client as any).holidays.findMany({
       where: {
         school_id: schoolIdInt,
       },
@@ -77,7 +85,8 @@ async fetchHolidays(school_id: string) {
 
   async getHolidaysByClass(schoolId: string, classId: string) {
     try {
-      const holidays = await this.prisma.$queryRawUnsafe<
+      const client = this.dbConfig.getDatabaseClient(this.request);
+      const holidays = await client.$queryRawUnsafe<
         { date: string; reason: string; fn?: string; an?: string }[]
       >(
         `
@@ -102,17 +111,18 @@ async fetchHolidays(school_id: string) {
   }
 
   async deleteHoliday(dto: DeleteHolidayDto) {
-      const result = await this.prisma.holidays.deleteMany({
-        where: {
-          date: new Date(dto.date),
-          school_id: dto.school_id,
-        },
-      });
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const result = await (client as any).holidays.deleteMany({
+      where: {
+        date: new Date(dto.date),
+        school_id: dto.school_id,
+      },
+    });
 
-      if (result.count === 0) {
-        throw new NotFoundException('Holiday not found');
-      }
-
-      return { status: 'success', message: 'Holiday removed' };
+    if (result.count === 0) {
+      throw new NotFoundException('Holiday not found');
     }
+
+    return { status: 'success', message: 'Holiday removed' };
+  }
 }

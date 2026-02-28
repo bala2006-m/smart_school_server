@@ -1,34 +1,45 @@
 // src/school/schools.service.ts
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { CreateSchoolDto } from './dto/create-school.dto';
 
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
+
 @Injectable()
 export class SchoolsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async countStudentsBySchool(schoolId: number): Promise<number> {
-    return this.prisma.student.count({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).student.count({
       where: { school_id: schoolId, is_left: true },
     });
   }
 
   async countStaffBySchoolId(schoolId: number): Promise<{ status: string; count: number }> {
-    const count = await this.prisma.staff.count({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const count = await (client as any).staff.count({
       where: { school_id: schoolId },
     });
     return { status: 'success', count };
   }
 
   async getLastMessageBySchoolId(schoolId: number) {
-    return this.prisma.messages.findFirst({
-      where: { school_id: schoolId,role:'admin' },
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).messages.findFirst({
+      where: { school_id: schoolId, role: 'admin' },
       orderBy: { id: 'desc' },
     });
   }
 
   async fetchClassData(schoolId: number) {
-    return this.prisma.classes.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).classes.findMany({
       where: { school_id: schoolId },
       select: { id: true, class: true, section: true },
       orderBy: { class: 'asc' },
@@ -59,7 +70,8 @@ export class SchoolsService {
   }
 
   async findById(id: number) {
-    return await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return await (client as any).school.findUnique({
       where: { id },
       select: {
         id: true,
@@ -68,13 +80,15 @@ export class SchoolsService {
         photo: true,
         createdAt: true,
         dueDate: true,
-        student_access:true
+        student_access: true
+
       },
     });
   }
   async findAllSchools() {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     try {
-      return await this.prisma.school.findMany({
+      return await (client as any).school.findMany({
         select: { id: true, name: true, address: true, photo: true },
         orderBy: { name: 'asc' },
       });
@@ -83,7 +97,8 @@ export class SchoolsService {
     }
   }
   async create(createSchoolDto: CreateSchoolDto, file: Express.Multer.File) {
-    const existingSchool = await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const existingSchool = await (client as any).school.findUnique({
       where: { name: createSchoolDto.name },
     });
 
@@ -91,7 +106,7 @@ export class SchoolsService {
       throw new InternalServerErrorException(`School is already registered`);
     }
 
-    return this.prisma.school.create({
+    return (client as any).school.create({
       data: {
         id: Number(createSchoolDto.schoolId),
         name: createSchoolDto.name,
@@ -102,7 +117,8 @@ export class SchoolsService {
   }
 
   async updateDueDate(schoolId: number, dueDate: Date) {
-    const school = await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const school = await (client as any).school.findUnique({
       where: { id: schoolId },
     });
 
@@ -110,14 +126,15 @@ export class SchoolsService {
       throw new Error('School not found');
     }
 
-    return this.prisma.school.update({
+    return (client as any).school.update({
       where: { id: schoolId },
       data: { dueDate },
     });
   }
   // Get school with payment history
   async getSchoolWithPayments(schoolId: number) {
-    return this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).school.findUnique({
       where: { id: schoolId },
       include: {
         appPayment: {
@@ -129,7 +146,8 @@ export class SchoolsService {
 
   // Check if payment is overdue
   async isPaymentOverdue(schoolId: number): Promise<boolean> {
-    const school = await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const school = await (client as any).school.findUnique({
       where: { id: schoolId },
       select: { dueDate: true, createdAt: true },
     });
@@ -153,7 +171,8 @@ export class SchoolsService {
     return false;
   }
   async getSchoolById(schoolId: number) {
-    return this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).school.findUnique({
       where: { id: schoolId },
       select: {
         id: true,
@@ -167,45 +186,47 @@ export class SchoolsService {
   }
 
   async fetchStudentAccess(schoolId: number) {
-    const school = await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const school = await (client as any).school.findUnique({
       where: { id: schoolId },
       select: {
         student_access: true,
       },
     });
-  
+
     if (!school) {
       throw new InternalServerErrorException('School not found');
     }
-  
-    
+
+
     const defaultAccess = {
       viewHomework: true,
       events: true,
       message: true,
     };
-  
+
     return {
       status: 'success',
       student_access: school.student_access ?? defaultAccess,
     };
   }
-  
-  async updateStudentAccess(
-  school_id: number,
-  student_access: Record<string, boolean>,
-) {
-  await this.prisma.school.update({
-    where: { id: school_id },
-    data: {
-      student_access,
-    },
-  });
 
-  return {
-    status: 'success',
-    message: 'Student access updated successfully',
-    student_access,
-  };
-}
+  async updateStudentAccess(
+    school_id: number,
+    student_access: Record<string, boolean>,
+  ) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    await (client as any).school.update({
+      where: { id: school_id },
+      data: {
+        student_access,
+      },
+    });
+
+    return {
+      status: 'success',
+      message: 'Student access updated successfully',
+      student_access,
+    };
+  }
 }

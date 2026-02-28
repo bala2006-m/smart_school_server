@@ -1,9 +1,12 @@
 import {
+  Inject,
   Injectable,
   ConflictException,
   InternalServerErrorException,
   BadRequestException,
 } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 import { PrismaService } from '../common/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
@@ -14,21 +17,25 @@ import { log } from 'console';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async register(data: RegisterDto) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     const { username, password, role, school_id } = data;
 
     // Check if username exists
-    const existingUser = await this.prisma.attendance_user.findUnique({
-  where: {
-    username_school_id: {
-      username,
-      school_id: Number(school_id),
-    },
-  },
-});
-
+    const existingUser = await (client as any).attendance_user.findUnique({
+      where: {
+        username_school_id: {
+          username,
+          school_id: Number(school_id),
+        },
+      },
+    });
 
     if (existingUser) {
       throw new ConflictException('Username already exists');
@@ -38,12 +45,12 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
-      const newUser = await this.prisma.attendance_user.create({
+      const newUser = await (client as any).attendance_user.create({
         data: {
           username,
           password: hashedPassword,
           role,
-          school_id,
+          school: { connect: { id: Number(school_id) } },
         },
       });
 
@@ -60,6 +67,7 @@ export class AuthService {
   }
 
   async registerDesignation(dto: RegisterDesignationDto) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     const {
       username,
       designation,
@@ -69,7 +77,8 @@ export class AuthService {
       email,
       class_id,
       name,
-      gender,faculty,
+      gender,
+      faculty,
     } = dto;
 
     const schoolIdInt = parseInt(school_id);
@@ -78,57 +87,55 @@ export class AuthService {
     // Table-specific logic
     const tableMap = {
       admin: async () => {
-        const exists = await this.prisma.admin.findUnique({
-          where: {username_school_id: { username, school_id: Number(school_id) }  },
+        const exists = await (client as any).admin.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         if (exists)
           throw new ConflictException('Username already exists in admin');
-        return this.prisma.admin.create({
+        return (client as any).admin.create({
           data: {
-            username,
-            designation,
-            school_id: schoolIdInt,
-            mobile,
+            user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
+            designation: designation || 'admin',
+            school: { connect: { id: schoolIdInt } },
+            mobile: mobile || '',
           },
         });
       },
       staff: async () => {
-  const exists = await this.prisma.staff.findUnique({
-    where: { username_school_id: { username, school_id: Number(school_id) } },
-  });
+        const exists = await (client as any).staff.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
+        });
 
-  if (exists) {
-    throw new ConflictException('Username already exists in staff');
-  }
+        if (exists) {
+          throw new ConflictException('Username already exists in staff');
+        }
 
-  return this.prisma.staff.create({
-    data: {
-      username,
-      designation,
-      school_id: schoolIdInt,
-      mobile,
-      ...(email ? { email } : {}),   // only include if provided
-      class_ids: [], 
-      faculty,                // JSON array
-    },
-  });
-},
-
+        return (client as any).staff.create({
+          data: {
+            user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
+            designation: designation || 'staff',
+            school: { connect: { id: schoolIdInt } },
+            mobile: mobile || '',
+            ...(email ? { email } : {}),   // only include if provided
+            class_ids: [],
+            faculty: faculty || 'null',                // JSON array
+          },
+        });
+      },
       students: async () => {
-        const exists = await this.prisma.student.findUnique({
-          where: {  username_school_id: { username, school_id: Number(school_id) }},
+        const exists = await (client as any).student.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         if (exists)
           throw new ConflictException('Username already exists in students');
-        return this.prisma.student.create({
+        return (client as any).student.create({
           data: {
-            username,
-            name,
-            gender,
-            school_id: schoolIdInt,
-            mobile,
-            class_id: classIdInt,
-            email,
+            user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
+            name: name || '',
+            gender: gender as any,
+            school: { connect: { id: schoolIdInt } },
+            class: { connect: { id: classIdInt } },
+            email: email || 'null',
           },
         });
       },
@@ -148,12 +155,14 @@ export class AuthService {
       username,
     };
   }
+
   async registerStudent(dto: RegisterStudentDto) {
-    const { username, name, gender, email, mobile, class_id, school_id,fatherName,community,route,dob } = dto;
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const { username, name, gender, email, mobile, class_id, school_id, fatherName, community, route, dob } = dto;
 
     // Check if username exists
-    const exists = await this.prisma.student.findUnique({
-      where: {  username_school_id: { username, school_id: Number(school_id) }},
+    const exists = await (client as any).student.findUnique({
+      where: { username_school_id: { username, school_id: Number(school_id) } },
     });
 
     if (exists) {
@@ -161,19 +170,19 @@ export class AuthService {
     }
 
     try {
-      const student = await this.prisma.student.create({
+      const student = await (client as any).student.create({
         data: {
-          username,
+          user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
           name,
           gender,
           email,
           mobile,
-          class_id: Number(class_id),
-          school_id: Number(school_id),
-          father_name:fatherName,
+          school: { connect: { id: Number(school_id) } },
+          class: { connect: { id: Number(class_id) } },
+          father_name: fatherName,
           community,
-          route:route,
-          DOB:new Date(dob)
+          route: route,
+          DOB: new Date(dob)
 
         },
       });
@@ -189,7 +198,9 @@ export class AuthService {
       );
     }
   }
-  async registerDesignation1(dto,faculty?:string) {
+
+  async registerDesignation1(dto, faculty?: string) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     const {
       username,
       name,
@@ -210,7 +221,6 @@ export class AuthService {
       date_of_join
     } = dto;
 
-
     // ✅ Detect fully empty rows
     if (
       (!username || username.trim() === '') &&
@@ -222,7 +232,6 @@ export class AuthService {
       (!class_id || class_id.toString().trim() === '') &&
       (!password || password.trim() === '')
     ) {
-      // console.log(⚠ Empty row detected for table: ${table});
       return { emptyRow: true };
     }
 
@@ -231,138 +240,139 @@ export class AuthService {
 
     const tableMap = {
       admin: async () => {
-        const school = await this.prisma.school.findUnique({
+        const school = await (client as any).school.findUnique({
           where: { id: schoolIdInt },
         });
         if (!school)
           throw new BadRequestException(`Invalid school_id: ${schoolIdInt}`);
 
-        const existingAdmin = await this.prisma.admin.findUnique({
-          where: {  username_school_id: { username, school_id: Number(school_id) } },
+        const existingAdmin = await (client as any).admin.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         if (existingAdmin) return { alreadyExisting: { username } };
 
-        const attendanceUser = await this.prisma.attendance_user.findUnique({
-          where: {  username_school_id: { username, school_id: Number(school_id) }},
+        const attendanceUser = await (client as any).attendance_user.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         const hashedPassword = await bcrypt.hash(password, 10);
         if (!attendanceUser) {
-          await this.prisma.attendance_user.create({
+          await (client as any).attendance_user.create({
             data: {
               username,
               password: hashedPassword || '',
               role: 'admin',
-              school_id: schoolIdInt,
+              school: { connect: { id: schoolIdInt } },
             },
           });
         }
 
-        return await this.prisma.admin.create({
+        return await (client as any).admin.create({
           data: {
-            username,
-            name,
-            designation,
-            gender,
-            school_id: schoolIdInt,
-            mobile,
-            email,
+            user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
+            name: name || '',
+            designation: designation || 'admin',
+            gender: gender || 'null',
+            school: { connect: { id: schoolIdInt } },
+            mobile: mobile || '',
+            email: email || 'example@gmail.com',
           },
         });
       },
 
       staff: async () => {
-        const school = await this.prisma.school.findUnique({
+        const school = await (client as any).school.findUnique({
           where: { id: schoolIdInt },
         });
         if (!school)
           throw new BadRequestException(`Invalid school_id: ${schoolIdInt}`);
 
-        const existingStaff = await this.prisma.staff.findUnique({
-          where: {  username_school_id: { username, school_id: Number(school_id) }},
+        const existingStaff = await (client as any).staff.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         if (existingStaff) return { alreadyExisting: { username } };
 
-        const attendanceUser = await this.prisma.attendance_user.findUnique({
-          where: {  username_school_id: { username, school_id: Number(school_id) }},
+        const attendanceUser = await (client as any).attendance_user.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         const hashedPassword = await bcrypt.hash(password, 10);
         if (!attendanceUser) {
-          await this.prisma.attendance_user.create({
+          await (client as any).attendance_user.create({
             data: {
               username,
               password: hashedPassword || '',
               role: 'staff',
-              school_id: schoolIdInt,
+              school: { connect: { id: schoolIdInt } },
             },
           });
         }
-// console.log('Service Faculty:', faculty);
-        return await this.prisma.staff.create({
+
+        return await (client as any).staff.create({
           data: {
-            username,
-            name,
-            gender,
-            designation,
-            school_id: schoolIdInt,
-            mobile,
-            faculty: faculty,
-            email,
-            class_ids:[]
+            user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
+            name: name || '',
+            gender: (gender as any) || null,
+            designation: designation || 'staff',
+            school: { connect: { id: schoolIdInt } },
+            mobile: mobile || '',
+            faculty: faculty || 'null',
+            email: email || 'null',
+            class_ids: []
           },
         });
       },
 
       students: async () => {
-        const school = await this.prisma.school.findUnique({
+        const school = await (client as any).school.findUnique({
           where: { id: schoolIdInt },
         });
         if (!school)
           throw new BadRequestException(`Invalid school_id: ${schoolIdInt}`);
-const classes = await this.prisma.classes.findUnique({
-          where: { id: Number(classIdInt),
-            school_id:schoolIdInt
-           },
+        const classes = await (client as any).classes.findUnique({
+          where: {
+            id: Number(classIdInt),
+            school_id: schoolIdInt
+          },
         });
         if (!classes)
           throw new BadRequestException(`Invalid class_id: ${classIdInt}`);
 
-        const existingStudent = await this.prisma.student.findUnique({
-          where: {  username_school_id: { username, school_id: Number(school_id) }},
+        const existingStudent = await (client as any).student.findUnique({
+          where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         if (existingStudent) return { alreadyExisting: { username } };
 
-        const attendanceUser = await this.prisma.attendance_user.findUnique({
+        const attendanceUser = await (client as any).attendance_user.findUnique({
           where: { username_school_id: { username, school_id: Number(school_id) } },
         });
         const hashedPassword = await bcrypt.hash(password, 10);
 
         if (!attendanceUser) {
-          await this.prisma.attendance_user.create({
+          await (client as any).attendance_user.create({
             data: {
               username,
               password: hashedPassword || '',
               role: 'student',
-              school_id: schoolIdInt,
+              school: { connect: { id: schoolIdInt } },
             },
           });
         }
 
-        return await this.prisma.student.create({
+        return await (client as any).student.create({
           data: {
-            username,
-            name:name.toUpperCase(),
+            user: { connect: { username_school_id: { username, school_id: Number(school_id) } } },
+            name: name.toUpperCase(),
             gender: gender as any,
             mobile,
             email,
             photo: null,
-            school_id: schoolIdInt,
-            class_id: Number(classIdInt),
-            DOB:new Date(DOB),
-            community:community.toUpperCase(),
-            father_name:father_name.toUpperCase(),
+            school: { connect: { id: schoolIdInt } },
+            class: { connect: { id: Number(classIdInt) } },
+            DOB: new Date(DOB),
+            community: community.toUpperCase(),
+            father_name: father_name.toUpperCase(),
             route,
-            address:address.toUpperCase(),
-            date_of_join:new Date(date_of_join),
+            address: address.toUpperCase(),
+            date_of_join: new Date(date_of_join),
 
           },
         });
@@ -402,10 +412,11 @@ const classes = await this.prisma.classes.findUnique({
     }
   }
 
-   // ✅ Update Password Logic
-  async updatePassword(username: string, newPassword: string,school_id:number) {
+  // ✅ Update Password Logic
+  async updatePassword(username: string, newPassword: string, school_id: number) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     // Check if user exists
-    const user = await this.prisma.attendance_user.findUnique({ where: { username_school_id: { username, school_id: Number(school_id) } } });
+    const user = await (client as any).attendance_user.findUnique({ where: { username_school_id: { username, school_id: Number(school_id) } } });
     if (!user) {
       throw new BadRequestException({ status: 'error', message: 'User not found' });
     }
@@ -414,8 +425,8 @@ const classes = await this.prisma.classes.findUnique({
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update password in DB
-    await this.prisma.attendance_user.update({
-      where: {  username_school_id: { username, school_id: Number(school_id) }},
+    await (client as any).attendance_user.update({
+      where: { username_school_id: { username, school_id: Number(school_id) } },
       data: { password: hashedPassword },
     });
 

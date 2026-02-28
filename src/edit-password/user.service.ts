@@ -1,10 +1,16 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async editPassword(dto: {
     username: string;
@@ -13,9 +19,10 @@ export class UserService {
     oldPassword: string;
     newPassword: string;
   }) {
-    const user = await this.prisma.attendance_user.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const user = await (client as any).attendance_user.findUnique({
       where: {
-         username_school_id: { username:dto.username, school_id: Number(dto.school_id) }
+        username_school_id: { username: dto.username, school_id: Number(dto.school_id) }
       },
     });
 
@@ -30,7 +37,7 @@ export class UserService {
 
     const hashedNewPassword = await bcrypt.hash(dto.newPassword, 10);
 
-    await this.prisma.attendance_user.update({
+    await (client as any).attendance_user.update({
       where: { id: user.id },
       data: { password: hashedNewPassword },
     });

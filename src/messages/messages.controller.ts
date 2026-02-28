@@ -1,6 +1,7 @@
 import { Controller, Get, Param, ParseIntPipe, Post, Body, Delete } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
+import { EnableSync } from '../common/sync/sync.decorator';
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) { }
@@ -18,12 +19,14 @@ export class MessagesController {
     return this.messagesService.getAllBySchoolId(schoolId);
   }
   @Delete('delete/:id')
+  @EnableSync('Messages', 'delete')
   async delete(@Param('id') id: number) {
  
 
     return this.messagesService.delete(+id);
   }
   @Post('post-message')
+  @EnableSync('Messages', 'create')
   async postMessage(@Body() dto: CreateMessageDto) {
     return this.messagesService.postMessage(dto.messages, dto.schoolId ,dto.role);
   }

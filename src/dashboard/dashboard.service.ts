@@ -1,25 +1,33 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   async getSummary(school_id: number, date: string) {
     const d = new Date(date);
 
-    const totalStudents = await this.prisma.student.count({ where: { school_id: school_id }
- });
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const totalStudents = await (client as any).student.count({
+      where: { school_id: school_id }
+    });
 
-    const studentAttendance = await this.prisma.studentAttendance.groupBy({
+    const studentAttendance = await (client as any).studentAttendance.groupBy({
       by: ['fn_status', 'an_status'],
       where: { school_id, date: d },
       _count: true,
     });
 
-    const totalStaff = await this.prisma.staff.count({ where: { school_id } });
+    const totalStaff = await (client as any).staff.count({ where: { school_id } });
 
-    const staffAttendance = await this.prisma.staffAttendance.groupBy({
+    const staffAttendance = await (client as any).staffAttendance.groupBy({
       by: ['fn_status', 'an_status'],
       where: { school_id, date: d },
       _count: true,
@@ -56,13 +64,14 @@ export class DashboardService {
   async getClassSummary(school_id: number, date: string) {
     const d = new Date(date);
 
-    const classGroups = await this.prisma.student.groupBy({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const classGroups = await (client as any).student.groupBy({
       by: ['class_id'],
       where: { school_id: Number(school_id) },
       _count: { id: true },
     });
 
-    const attendance = await this.prisma.studentAttendance.groupBy({
+    const attendance = await (client as any).studentAttendance.groupBy({
       by: ['class_id', 'fn_status', 'an_status'],
       where: { school_id, date: d },
       _count: true,

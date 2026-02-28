@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { addMonths, differenceInMonths, isAfter } from 'date-fns';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class AppPaymentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   private readonly PRICE_PER_STUDENT = 5;
   private readonly FREE_TRIAL_MONTHS = 3;
@@ -12,7 +18,8 @@ export class AppPaymentService {
 
   // Calculate due amount for a school
   async calculateDueAmount(schoolId: number) {
-    const school = await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const school = await (client as any).school.findUnique({
       where: { id: schoolId },
     });
 
@@ -38,7 +45,7 @@ export class AppPaymentService {
     }
 
     // Check if school has made payment
-    const lastPayment = await this.prisma.appPayment.findFirst({
+    const lastPayment = await (client as any).appPayment.findFirst({
       where: { schoolId, status: 'COMPLETED' },
       orderBy: { paidAt: 'desc' },
     });
@@ -55,7 +62,7 @@ export class AppPaymentService {
   // Get payment amount based on plan and student count (with GST included)
   calculatePaymentAmount(studentsCount: number, paymentPlan: 'MONTHLY' | 'YEARLY') {
     let baseAmount: number;
-    
+
     if (paymentPlan === 'YEARLY') {
       baseAmount = studentsCount * this.PRICE_PER_STUDENT * 10; // Pay for 10 months
     } else {
@@ -77,8 +84,9 @@ export class AppPaymentService {
     transactionId?: string;
   }) {
     const amount = this.calculatePaymentAmount(data.studentsCount, data.paymentPlan);
-    
-    const school = await this.prisma.school.findUnique({
+
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const school = await (client as any).school.findUnique({
       where: { id: data.schoolId },
     });
 
@@ -88,16 +96,16 @@ export class AppPaymentService {
     }
     const trialEndDate = addMonths(createdAt, this.FREE_TRIAL_MONTHS);
     const today = new Date();
-    
+
     // Period start is either trial end date or today (whichever is later)
     const periodStart = isAfter(today, trialEndDate) ? today : trialEndDate;
-    
+
     // Period end depends on payment plan
-    const periodEnd = data.paymentPlan === 'YEARLY' 
-      ? addMonths(periodStart, 12) 
+    const periodEnd = data.paymentPlan === 'YEARLY'
+      ? addMonths(periodStart, 12)
       : addMonths(periodStart, 1);
 
-    const payment = await this.prisma.appPayment.create({
+    const payment = await (client as any).appPayment.create({
       data: {
         schoolId: data.schoolId,
         studentsCount: data.studentsCount,
@@ -115,7 +123,8 @@ export class AppPaymentService {
 
   // Get all payments for a school
   async getSchoolPayments(schoolId: number) {
-    return this.prisma.appPayment.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).appPayment.findMany({
       where: { schoolId },
       orderBy: { paidAt: 'desc' },
     });
@@ -123,7 +132,8 @@ export class AppPaymentService {
 
   // Get payment report
   async getPaymentReport(schoolId: number) {
-    const school = await this.prisma.school.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const school = await (client as any).school.findUnique({
       where: { id: schoolId },
       include: { appPayment: true },
     });
@@ -142,13 +152,14 @@ export class AppPaymentService {
   }
 
   async updatePaymentStatus(
-    paymentId: number, 
+    paymentId: number,
     status: 'COMPLETED' | 'FAILED',
     transactionId?: string
   ) {
-    const payment = await this.prisma.appPayment.update({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const payment = await (client as any).appPayment.update({
       where: { id: paymentId },
-      data: { 
+      data: {
         status,
         transactionId: transactionId || null,
       },
@@ -156,7 +167,7 @@ export class AppPaymentService {
 
     // Update school's due date if payment is completed
     if (status === 'COMPLETED') {
-      await this.prisma.school.update({
+      await (client as any).school.update({
         where: { id: payment.schoolId },
         data: { dueDate: payment.periodEnd },
       });

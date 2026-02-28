@@ -2,15 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// datasource db {
-//   provider = "mysql"
-// }
 datasource db {
   provider = "mysql"
   url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
 }
-
-//url      = "mysql://admin:Ramchin123@school-attendance.cr2ue6u44sny.eu-north-1.rds.amazonaws.com:3306/school_attendance"
 
 enum Gender {
   M
@@ -66,7 +61,10 @@ model Finance {
   created_at DateTime    @default(now())
   updated_by String
   updated_at DateTime    @updatedAt
-  school School  @relation(fields: [school_id], references: [id])
+  is_deleted Boolean     @default(false)
+  sync_status String     @default("synced")
+
+  school School @relation(fields: [school_id], references: [id])
 }
 
 model RteStructure {
@@ -81,9 +79,10 @@ model RteStructure {
   updated_by   String
   updated_at   DateTime @updatedAt
   status       String   @default("inactive") // "active" or "inactive"
-
-  class  Classes @relation(fields: [class_id], references: [id])
-  school School  @relation(fields: [school_id], references: [id])
+  is_deleted   Boolean  @default(false)
+  sync_status  String   @default("synced")
+  class        Classes  @relation(fields: [class_id], references: [id])
+  school       School   @relation(fields: [school_id], references: [id])
 
   rteFeePayment RteFeePayment[]
 }
@@ -101,6 +100,9 @@ model RteFeePayment {
   status               BusFeesStatus
   created_by           String
   created_at           DateTime      @default(now())
+  updated_at           DateTime      @default(now()) @updatedAt
+  is_deleted           Boolean       @default(false)
+  sync_status          String        @default("synced")
 
   // Relations
   RteStructure RteStructure @relation(fields: [rte_fee_structure_id], references: [id])
@@ -125,7 +127,9 @@ model BusFeePayment {
   created_by           String
   created_at           DateTime      @default(now())
   updated_by           String
-  updated_at           DateTime      @updatedAt
+  updated_at           DateTime     @default(now())  @updatedAt 
+  is_deleted           Boolean       @default(false)
+  sync_status          String        @default("synced")
 
   // Relations
   busFeeStructure BusFeeStructure @relation(fields: [bus_fee_structure_id], references: [id])
@@ -148,7 +152,9 @@ model BusFeeStructure {
   created_by   String
   created_at   DateTime  @default(now())
   updated_by   String
-  updated_at   DateTime  @updatedAt
+  updated_at   DateTime @default(now()) @updatedAt
+  is_deleted   Boolean   @default(false)
+  sync_status  String    @default("synced")
 
   busFeePayment BusFeePayment[]
   school        School          @relation(fields: [school_id], references: [id])
@@ -162,7 +168,11 @@ model ImageAndVideos {
   title       String?
   description String?
   date        DateTime?
-  school      School             @relation(fields: [school_id], references: [id])
+  updated_at  DateTime          @default(now()) @updatedAt
+  is_deleted  Boolean            @default(false)
+  sync_status String             @default("synced")
+
+  school School @relation(fields: [school_id], references: [id])
 }
 
 model FeeStructure {
@@ -180,6 +190,8 @@ model FeeStructure {
   updated_by   String
   updated_at   DateTime  @updatedAt
   status       String    @default("inactive") // "active" or "inactive"
+  is_deleted   Boolean   @default(false)
+  sync_status  String    @default("synced")
 
   class       Classes       @relation(fields: [class_id], references: [id])
   school      School        @relation(fields: [school_id], references: [id])
@@ -200,6 +212,9 @@ model StudentFees {
   createdBy    String
   createdAt    DateTime?
   remarks      String?
+  updated_at   DateTime        @default(now())  @updatedAt
+  is_deleted   Boolean           @default(false)
+  sync_status  String            @default("synced")
 
   user         Student       @relation(fields: [username, school_id], references: [username, school_id])
   class        Classes       @relation(fields: [class_id], references: [id])
@@ -217,6 +232,9 @@ model FeePayments {
   method         String?
   transaction_id String?
   status         String   @default("pending")
+  updated_at     DateTime @default(now()) @updatedAt
+  is_deleted     Boolean  @default(false)
+  sync_status    String   @default("synced")
 
   studentFee StudentFees @relation(fields: [student_fee_id], references: [aId])
 }
@@ -239,6 +257,8 @@ model ExamMarks {
   status        String?  @default("inactive")
   date          Json
   session       Json
+  is_deleted    Boolean  @default(false)
+  sync_status   String   @default("synced")
 
   class  Classes @relation(fields: [class_id], references: [id])
   school School  @relation(fields: [school_id], references: [id])
@@ -246,21 +266,45 @@ model ExamMarks {
   @@unique([school_id, class_id, username, title], name: "unique_exam_per_student")
 }
 
+model ExamTimeTable {
+  id         Int    @id @default(autoincrement())
+  school_id  Int
+  class_id   Int
+  exam_title String
+  subjects   Json
+
+  created_by String
+  created_at DateTime @default(now())
+  date       Json
+  session    Json
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
+
+  class  Classes @relation(fields: [class_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
+
+  @@unique([school_id, class_id, exam_title], name: "unique_exam_per_student")
+}
+
 model Attendance_user {
-  id        Int     @id @default(autoincrement())
-  username  String
-  password  String
-  role      String
-  school_id Int
-  fcmToken  String?
+  id         Int               @id @default(autoincrement())
+  username   String
+  password   String
+  role       String
+  school_id  Int
+  fcmToken   String?
+  status     String            @default("active")
+  updated_at DateTime          @default(now()) @updatedAt
+  is_deleted Boolean           @default(false)
+  sync_status String            @default("synced")
+  school     School            @relation(fields: [school_id], references: [id])
+  staff      Staff?            @relation("UserToStaff1")
+  students   Student[]
+  admin      Admin?
+  messages   RealTimeMessage[]
 
-  school   School            @relation(fields: [school_id], references: [id])
-  staff    Staff?            @relation("UserToStaff1")
-  students Student[]
-  admin    Admin?
-  messages RealTimeMessage[]
-
-  @@unique([username, school_id]) // usernames unique per school
+  @@unique([username, school_id], name: "username_school_id") // usernames unique per school
   @@index([school_id])
 }
 
@@ -271,6 +315,7 @@ model RealTimeMessage {
   school_id Int
   classId   Int?
   createdAt DateTime @default(now())
+  sync_status String   @default("synced")
 
   senderId   Int
   sender     Attendance_user @relation(fields: [senderId], references: [id])
@@ -295,6 +340,9 @@ model AppPayment {
   transactionId String? // Payment gateway transaction ID
   status        AppPaymentStatus @default(PENDING)
   createdAt     DateTime         @default(now())
+  updated_at    DateTime         @default(now()) @updatedAt
+  is_deleted    Boolean          @default(false)
+  sync_status   String           @default("synced")
 }
 
 enum AppPaymentPlan {
@@ -309,13 +357,17 @@ enum AppPaymentStatus {
 }
 
 model School {
-  id                 Int                 @id @default(autoincrement())
-  name               String              @unique
-  address            String
-  photo              Bytes?
-  createdAt          DateTime?           @default(now())
-  dueDate            DateTime?
-  student_access      Json @default("null")
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+  address        String
+  photo          Bytes?
+  createdAt      DateTime? @default(now())
+  dueDate        DateTime?
+  student_access Json      @default("null")
+  updated_at     DateTime @default(now())  @updatedAt
+  is_deleted     Boolean   @default(false)
+  sync_status    String    @default("synced")
+
   users              Attendance_user[]
   staff              Staff[]
   classes            Classes[]
@@ -339,28 +391,35 @@ model School {
   busFeePayment      BusFeePayment[]
   rteStructure       RteStructure[]
   rteFeePayment      RteFeePayment[]
-  Finance Finance[]
+  Finance            Finance[]
+  examTimeTable      ExamTimeTable[]
 }
 
 model BlockedSchool {
-  id        Int    @id @default(autoincrement())
-  school_id Int    @unique
-  reason    String
-  school    School @relation(fields: [school_id], references: [id])
+  id         Int      @id @default(autoincrement())
+  school_id  Int      @unique
+  reason     String
+  school     School   @relation(fields: [school_id], references: [id])
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   @@index([school_id])
 }
 
 model Classes {
-  id        Int    @id @default(autoincrement())
-  class     String @map("class")
-  section   String
-  school_id Int
+  id         Int      @id @default(autoincrement())
+  class      String   @map("class")
+  section    String
+  school_id  Int
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   school            School              @relation(fields: [school_id], references: [id])
   holidays          Holidays[]          @relation("HolidayClasses")
   staff             Staff[]             @relation("class_ids")
-  class_teacher             Staff[]             @relation("class_teacher")
+  class_teacher     Staff[]             @relation("class_teacher")
   students          Student[]
   studentAttendance StudentAttendance[]
   classTimetables   ClassTimetable[]
@@ -371,18 +430,22 @@ model Classes {
   busFeePayment     BusFeePayment[]
   rteStructure      RteStructure[]
   rteFeePayment     RteFeePayment[]
+  examTimeTable     ExamTimeTable[]
 
   @@index([school_id])
 }
 
 model Holidays {
-  id        Int      @id @default(autoincrement())
-  date      DateTime
-  reason    String
-  school_id Int?
-  class_ids Json
-  fn        String?  @db.Char(1)
-  an        String   @db.Char(1)
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  reason     String
+  school_id  Int?
+  class_ids  Json
+  fn         String?  @db.Char(1)
+  an         String   @db.Char(1)
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   school  School?   @relation(fields: [school_id], references: [id])
   classes Classes[] @relation("HolidayClasses")
@@ -391,14 +454,17 @@ model Holidays {
 }
 
 model Student {
-  id        Int     @id @default(autoincrement())
-  username  String
-  name      String?
-  gender    Gender?
-  email     String
-  mobile    String
-  class_id  Int
-  school_id Int
+  id         Int      @id @default(autoincrement())
+  username   String
+  name       String?
+  gender     Gender?
+  email      String
+  mobile     String
+  class_id   Int
+  school_id  Int
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   photo         Bytes?
   father_name   String              @default("null")
@@ -408,8 +474,8 @@ model Student {
   address       String              @default("null")
   date_of_join  DateTime?           @default(now())
   isRTE         Boolean             @default(false)
-  is_left   Boolean @default(true)
-  left_detail Json @default("null")
+  is_left       Boolean             @default(true)
+  left_detail   Json                @default("null")
   class         Classes             @relation(fields: [class_id], references: [id])
   school        School              @relation(fields: [school_id], references: [id])
   user          Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])
@@ -418,31 +484,34 @@ model Student {
   busFeePayment BusFeePayment[]
   rteFeePayment RteFeePayment[]
 
-  @@unique([username, school_id]) // ✅ student username unique within school
+  @@unique([username, school_id], name: "username_school_id") // ✅ student username unique within school
   @@index([school_id])
   @@index([class_id])
 }
 
 model Staff {
-  id          Int     @id @default(autoincrement())
-  username    String
-  designation String
-  name        String?
-  email       String  @default("null")
-  gender      Gender?
-  mobile      String
-  school_id   Int
-  class_ids   Json    @default("null")
-  photo       Bytes?  @default("null")
-  faculty     String  @default("null")
-  class_teacher   Json    @default("null")
-  access      Json @default("null")
+  id            Int      @id @default(autoincrement())
+  username      String
+  designation   String
+  name          String?
+  email         String   @default("null")
+  gender        Gender?
+  mobile        String
+  school_id     Int
+  class_ids     Json     @default("null")
+  photo         Bytes?   @default("null")
+  faculty       String   @default("null")
+  class_teacher Json     @default("null")
+  access        Json     @default("null")
+  updated_at    DateTime @default(now()) @updatedAt
+  is_deleted    Boolean  @default(false)
+  sync_status   String   @default("synced")
 
-  school      School            @relation(fields: [school_id], references: [id])
-  user        Attendance_user   @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
-  attendances StaffAttendance[]
-  classes     Classes[]         @relation("class_ids")
-  classes_teacher     Classes[]         @relation("class_teacher")
+  school          School            @relation(fields: [school_id], references: [id])
+  user            Attendance_user   @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
+  attendances     StaffAttendance[]
+  classes         Classes[]         @relation("class_ids")
+  classes_teacher Classes[]         @relation("class_teacher")
 
   @@unique([username, school_id]) // ✅ username unique within school
   @@unique([mobile, school_id]) // ✅ mobile unique within school
@@ -450,16 +519,22 @@ model Staff {
 }
 
 model Admin {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String?
   designation String
-  gender      String  @default("null")
+  gender      String   @default("null")
   mobile      String
-  email       String  @default("example@gmail.com")
+  email       String   @default("example@gmail.com")
   photo       Bytes?
   username    String
   school_id   Int
-  access      Json @default("null")
+  access      Json     @default("null")
+  categories  Json     @default("null")
+  buttons     Json     @default("null")
+  updated_at  DateTime @default(now()) @updatedAt
+  is_deleted  Boolean  @default(false)
+  sync_status String   @default("synced")
+
   school        School          @relation(fields: [school_id], references: [id])
   user          Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
   studentFees   StudentFees[]
@@ -472,11 +547,14 @@ model Admin {
 }
 
 model StaffAttendance {
-  username  String
-  school_id Int
-  date      DateTime
-  fn_status String   @default("null")
-  an_status String   @default("null")
+  username   String
+  school_id  Int
+  date       DateTime
+  fn_status  String   @default("null")
+  an_status  String   @default("null")
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   school School @relation(fields: [school_id], references: [id])
   staff  Staff  @relation(fields: [username, school_id], references: [username, school_id])
@@ -486,12 +564,15 @@ model StaffAttendance {
 }
 
 model StudentAttendance {
-  username  String
-  school_id Int
-  class_id  Int
-  date      DateTime
-  fn_status String   @default("null")
-  an_status String   @default("null")
+  username   String
+  school_id  Int
+  class_id   Int
+  date       DateTime
+  fn_status  String   @default("null")
+  an_status  String   @default("null")
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   class   Classes @relation(fields: [class_id], references: [id])
   student Student @relation(fields: [username, school_id], references: [username, school_id])
@@ -509,6 +590,9 @@ model ClassTimetable {
   dayOfWeek    DayOfWeek
   periodNumber Int
   subject      String
+  updated_at   DateTime  @default(now()) @updatedAt
+  is_deleted   Boolean   @default(false)
+  sync_status  String    @default("synced")
 
   School  School?  @relation(fields: [schoolId], references: [id])
   Classes Classes? @relation(fields: [classesId], references: [id])
@@ -527,6 +611,9 @@ model Feedback {
   school_id  Int
   class_id   Int
   created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   school School  @relation(fields: [school_id], references: [id])
   class  Classes @relation(fields: [class_id], references: [id])
@@ -543,6 +630,9 @@ model Tickets {
   status      String   @default("Pending")
   created_at  DateTime @default(now())
   modified_at DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+  is_deleted  Boolean  @default(false)
+  sync_status String   @default("synced")
 
   school School @relation(fields: [school_id], references: [id])
 }
@@ -552,9 +642,10 @@ model Messages {
   messages  String  @db.VarChar(200)
   date      String? @db.VarChar(45)
   school_id Int
-  role String @default("null")
+  role      String  @default("null")
 
   school School @relation(fields: [school_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sync_status String @default("synced")
 
   @@index([school_id])
 }
@@ -570,7 +661,9 @@ model LeaveRequest {
   reason     String? // Optional leave reason
   status     String   @default("pending") // "pending", "approved", "rejected"
   created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  updated_at DateTime @default(now()) @updatedAt
+  is_deleted Boolean  @default(false)
+  sync_status String   @default("synced")
 
   @@index([username])
   @@index([school_id, class_id])
@@ -587,6 +680,9 @@ model Homework {
   due_date      DateTime
   assigned_by   String
   attachments   Json?
+  updated_at    DateTime @default(now()) @updatedAt
+  is_deleted    Boolean  @default(false)
+  sync_status   String   @default("synced")
 
   @@index([school_id, class_id])
 }

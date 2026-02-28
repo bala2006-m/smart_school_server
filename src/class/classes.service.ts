@@ -1,13 +1,20 @@
-import { Injectable, ConflictException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, InternalServerErrorException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { AddClassDto } from './dto/add-class.dto';
 import { DeleteClassDto } from './dto/delete-class.dto';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class ClassesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
   async getAllClassesBySchool(schoolId: number) {
-    return this.prisma.classes.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).classes.findMany({
       where: { school_id: schoolId },
       select: {
         id: true,
@@ -21,7 +28,8 @@ export class ClassesService {
   }
 
   async findClassName(classId: number, schoolId: number) {
-    const cls = await this.prisma.classes.findFirst({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const cls = await (client as any).classes.findFirst({
       where: {
         id: classId,
         school_id: schoolId,
@@ -46,7 +54,8 @@ export class ClassesService {
     const schoolIdInt = Number(school_id);
 
     try {
-      const exists = await this.prisma.classes.findFirst({
+      const client = this.dbConfig.getDatabaseClient(this.request);
+      const exists = await (client as any).classes.findFirst({
         where: {
           class: className,
           section,
@@ -58,7 +67,7 @@ export class ClassesService {
         throw new ConflictException('Class already marked');
       }
 
-      const newClass = await this.prisma.classes.create({
+      const newClass = await (client as any).classes.create({
         data: {
           class: className,
           section,
@@ -85,7 +94,8 @@ export class ClassesService {
     const schoolIdInt = Number(school_id);
 
     try {
-      const exists = await this.prisma.classes.findFirst({
+      const client = this.dbConfig.getDatabaseClient(this.request);
+      const exists = await (client as any).classes.findFirst({
         where: {
           class: className,
           section,
@@ -97,7 +107,7 @@ export class ClassesService {
         throw new ConflictException('Class not found');
       }
 
-      const deletedClass = await this.prisma.classes.delete({
+      const deletedClass = await (client as any).classes.delete({
         where: {
           id: exists.id, // safer to delete by ID to avoid multiple deletes
         },
@@ -121,8 +131,9 @@ export class ClassesService {
 
   async findClassId(school_id: string, className: string, section: string): Promise<number | null> {
     const schoolIdNum: number = Number(school_id);
+    const client = this.dbConfig.getDatabaseClient(this.request);
 
-    const classRecord = await this.prisma.classes.findFirst({
+    const classRecord = await (client as any).classes.findFirst({
       where: {
         school_id: schoolIdNum,
         class: className,
@@ -138,7 +149,8 @@ export class ClassesService {
 
 
   async getClassData(schoolId: number, classId: number) {
-    return this.prisma.classes.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).classes.findUnique({
       where: {
         id: classId,
         school_id: schoolId,
@@ -153,7 +165,8 @@ export class ClassesService {
 
 
   async fetchClassData(schoolId: number) {
-    return this.prisma.classes.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).classes.findMany({
       where: {
         school_id: schoolId,
       },

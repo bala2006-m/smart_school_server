@@ -1,0 +1,618 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// datasource db {
+//   provider = "mysql"
+// }
+datasource db {
+  provider = "mysql"
+  url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
+}
+
+//url      = "mysql://admin:Ramchin123@school-attendance.cr2ue6u44sny.eu-north-1.rds.amazonaws.com:3306/school_attendance"
+
+enum Gender {
+  M
+  F
+  O
+}
+
+enum FeeStatus {
+  active
+  inactive
+}
+
+enum StudentFeesStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+enum DayOfWeek {
+  Mon
+  Tue
+  Wed
+  Thu
+  Fri
+  Sat
+}
+
+enum ImageAndVideosType {
+  IMAGE
+  VIDEO
+}
+
+enum BusFeesStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+enum FinanceType {
+  INCOME
+  EXPENSE
+  DRAWING_IN
+  DRAWING_OUT
+}
+
+model Finance {
+  id         Int         @id @default(autoincrement())
+  school_id  Int
+  amount     Float
+  reason     String?
+  type       FinanceType
+  created_by String
+  created_at DateTime    @default(now())
+  updated_by String
+  updated_at DateTime    @updatedAt
+  school School  @relation(fields: [school_id], references: [id])
+}
+
+model RteStructure {
+  id           Int      @id @default(autoincrement())
+  school_id    Int
+  class_id     Int
+  descriptions Json?
+  amounts      Json?
+  total_amount Float?
+  created_by   String
+  created_at   DateTime @default(now())
+  updated_by   String
+  updated_at   DateTime @updatedAt
+  status       String   @default("inactive") // "active" or "inactive"
+
+  class  Classes @relation(fields: [class_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
+
+  rteFeePayment RteFeePayment[]
+}
+
+model RteFeePayment {
+  id                   Int           @id @default(autoincrement())
+  school_id            Int
+  class_id             Int
+  student_id           String
+  rte_fee_structure_id Int
+  payment_date         DateTime      @default(now())
+  amount_paid          Float
+  payment_mode         String
+  reference_number     String?
+  status               BusFeesStatus
+  created_by           String
+  created_at           DateTime      @default(now())
+
+  // Relations
+  RteStructure RteStructure @relation(fields: [rte_fee_structure_id], references: [id])
+  student      Student      @relation(fields: [student_id, school_id], references: [username, school_id])
+  admin        Admin        @relation(fields: [created_by, school_id], references: [username, school_id])
+  school       School       @relation(fields: [school_id], references: [id])
+  classes      Classes      @relation(fields: [class_id], references: [id])
+}
+
+model BusFeePayment {
+  id                   Int           @id @default(autoincrement())
+  school_id            Int
+  class_id             Int
+  student_id           String
+  bus_fee_structure_id Int
+  payment_date         DateTime      @default(now())
+  amount_paid          Float
+  payment_mode         String
+  reference_number     String?
+  status               BusFeesStatus
+  remarks              String?
+  created_by           String
+  created_at           DateTime      @default(now())
+  updated_by           String
+  updated_at           DateTime      @updatedAt
+
+  // Relations
+  busFeeStructure BusFeeStructure @relation(fields: [bus_fee_structure_id], references: [id])
+  student         Student         @relation(fields: [student_id, school_id], references: [username, school_id])
+  admin           Admin           @relation(fields: [created_by, school_id], references: [username, school_id])
+  school          School          @relation(fields: [school_id], references: [id])
+  classes         Classes         @relation(fields: [class_id], references: [id])
+}
+
+model BusFeeStructure {
+  id           Int       @id @default(autoincrement())
+  school_id    Int
+  route        String
+  term         String
+  amount_month Float
+  total_amount Float
+  status       String    @default("inactive") // "active" or "inactive"
+  start_date   DateTime? @default(now())
+  end_date     DateTime?
+  created_by   String
+  created_at   DateTime  @default(now())
+  updated_by   String
+  updated_at   DateTime  @updatedAt
+
+  busFeePayment BusFeePayment[]
+  school        School          @relation(fields: [school_id], references: [id])
+}
+
+model ImageAndVideos {
+  id          Int                @id @default(autoincrement())
+  school_id   Int
+  link        String
+  type        ImageAndVideosType
+  title       String?
+  description String?
+  date        DateTime?
+  school      School             @relation(fields: [school_id], references: [id])
+}
+
+model FeeStructure {
+  id           Int       @id @default(autoincrement())
+  school_id    Int
+  class_id     Int
+  title        String?
+  descriptions Json?
+  amounts      Json?
+  total_amount Float?
+  start_date   DateTime? @default(now())
+  end_date     DateTime?
+  created_by   String
+  created_at   DateTime  @default(now())
+  updated_by   String
+  updated_at   DateTime  @updatedAt
+  status       String    @default("inactive") // "active" or "inactive"
+
+  class       Classes       @relation(fields: [class_id], references: [id])
+  school      School        @relation(fields: [school_id], references: [id])
+  studentFees StudentFees[]
+
+  @@unique([school_id, class_id, title], name: "unique_fee_per_class")
+}
+
+model StudentFees {
+  aId          Int               @id @default(autoincrement())
+  id           Int
+  school_id    Int
+  class_id     Int
+  username     String
+  total_amount Float
+  paid_amount  Float
+  status       StudentFeesStatus @default(PENDING)
+  createdBy    String
+  createdAt    DateTime?
+  remarks      String?
+
+  user         Student       @relation(fields: [username, school_id], references: [username, school_id])
+  class        Classes       @relation(fields: [class_id], references: [id])
+  school       School        @relation(fields: [school_id], references: [id])
+  feeStructure FeeStructure  @relation(fields: [id], references: [id])
+  payments     FeePayments[]
+  admin        Admin         @relation(fields: [createdBy, school_id], references: [username, school_id])
+}
+
+model FeePayments {
+  id             Int      @id @default(autoincrement())
+  student_fee_id Int
+  amount         Float
+  payment_date   DateTime @default(now())
+  method         String?
+  transaction_id String?
+  status         String   @default("pending")
+
+  studentFee StudentFees @relation(fields: [student_fee_id], references: [aId])
+}
+
+model ExamMarks {
+  id            Int      @id @default(autoincrement())
+  school_id     Int
+  class_id      Int
+  username      String
+  title         String
+  min_max_marks Json
+  marks         Json
+  subjects      Json
+  subject_rank  Json
+  rank          String   @default("-")
+  created_by    String
+  created_at    DateTime @default(now())
+  updated_by    String
+  updated_at    DateTime @updatedAt
+  status        String?  @default("inactive")
+  date          Json
+  session       Json
+
+  class  Classes @relation(fields: [class_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
+
+  @@unique([school_id, class_id, username, title], name: "unique_exam_per_student")
+}
+model ExamTimeTable {
+  id            Int      @id @default(autoincrement())
+  school_id     Int
+  class_id      Int
+  exam_title         String
+  subjects      Json
+  
+  created_by    String
+  created_at    DateTime @default(now())
+  date          Json
+  session       Json
+
+  class  Classes @relation(fields: [class_id], references: [id])
+  school School  @relation(fields: [school_id], references: [id])
+
+  @@unique([school_id, class_id, exam_title], name: "unique_exam_per_student")
+}
+
+model Attendance_user {
+  id        Int     @id @default(autoincrement())
+  username  String
+  password  String
+  role      String
+  school_id Int
+  fcmToken  String?
+
+  school   School            @relation(fields: [school_id], references: [id])
+  staff    Staff?            @relation("UserToStaff1")
+  students Student[]
+  admin    Admin?
+  messages RealTimeMessage[]
+
+  @@unique([username, school_id]) // usernames unique per school
+  @@index([school_id])
+}
+
+model RealTimeMessage {
+  id        Int      @id @default(autoincrement())
+  text      String
+  role      String
+  school_id Int
+  classId   Int?
+  createdAt DateTime @default(now())
+
+  senderId   Int
+  sender     Attendance_user @relation(fields: [senderId], references: [id])
+  senderName String
+
+  school School @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
+  @@index([senderId])
+}
+
+model AppPayment {
+  id            Int              @id @default(autoincrement())
+  schoolId      Int
+  school        School           @relation(fields: [schoolId], references: [id])
+  studentsCount Int // Students at time of payment
+  paymentPlan   AppPaymentPlan
+  amount        Float
+  paidAt        DateTime         @default(now())
+  periodStart   DateTime // Billing period start
+  periodEnd     DateTime // Billing period end
+  transactionId String? // Payment gateway transaction ID
+  status        AppPaymentStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+}
+
+enum AppPaymentPlan {
+  MONTHLY
+  YEARLY
+}
+
+enum AppPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model School {
+  id                 Int                 @id @default(autoincrement())
+  name               String              @unique
+  address            String
+  photo              Bytes?
+  createdAt          DateTime?           @default(now())
+  dueDate            DateTime?
+  student_access      Json @default("null")
+  users              Attendance_user[]
+  staff              Staff[]
+  classes            Classes[]
+  holidays           Holidays[]
+  students           Student[]
+  feedbacks          Feedback[]
+  classTimetables    ClassTimetable[]
+  staffAttendances   StaffAttendance[]
+  studentAttendances StudentAttendance[]
+  admins             Admin[]
+  Messages           Messages[]
+  Tickets            Tickets[]
+  blockedSchool      BlockedSchool[]
+  messages           RealTimeMessage[]
+  examMarks          ExamMarks[]
+  feeStructure       FeeStructure[]
+  studentFees        StudentFees[]
+  appPayment         AppPayment[]
+  imageAndVideos     ImageAndVideos[]
+  busFeeStructure    BusFeeStructure[]
+  busFeePayment      BusFeePayment[]
+  rteStructure       RteStructure[]
+  rteFeePayment      RteFeePayment[]
+  Finance Finance[]
+  examTimeTable ExamTimeTable[]
+}
+
+model BlockedSchool {
+  id        Int    @id @default(autoincrement())
+  school_id Int    @unique
+  reason    String
+  school    School @relation(fields: [school_id], references: [id])
+
+  @@index([school_id])
+}
+
+model Classes {
+  id        Int    @id @default(autoincrement())
+  class     String @map("class")
+  section   String
+  school_id Int
+
+  school            School              @relation(fields: [school_id], references: [id])
+  holidays          Holidays[]          @relation("HolidayClasses")
+  staff             Staff[]             @relation("class_ids")
+  class_teacher             Staff[]             @relation("class_teacher")
+  students          Student[]
+  studentAttendance StudentAttendance[]
+  classTimetables   ClassTimetable[]
+  feedbacks         Feedback[]
+  examMarks         ExamMarks[]
+  feeStructure      FeeStructure[]
+  studentFees       StudentFees[]
+  busFeePayment     BusFeePayment[]
+  rteStructure      RteStructure[]
+  rteFeePayment     RteFeePayment[]
+examTimeTable ExamTimeTable[]
+  @@index([school_id])
+}
+
+model Holidays {
+  id        Int      @id @default(autoincrement())
+  date      DateTime
+  reason    String
+  school_id Int?
+  class_ids Json
+  fn        String?  @db.Char(1)
+  an        String   @db.Char(1)
+
+  school  School?   @relation(fields: [school_id], references: [id])
+  classes Classes[] @relation("HolidayClasses")
+
+  @@index([school_id])
+}
+
+model Student {
+  id        Int     @id @default(autoincrement())
+  username  String
+  name      String?
+  gender    Gender?
+  email     String
+  mobile    String
+  class_id  Int
+  school_id Int
+
+  photo         Bytes?
+  father_name   String              @default("null")
+  community     String              @default("null")
+  DOB           DateTime?           @default(now())
+  route         String              @default("null")
+  address       String              @default("null")
+  date_of_join  DateTime?           @default(now())
+  isRTE         Boolean             @default(false)
+  is_left   Boolean @default(true)
+  left_detail Json @default("null")
+  class         Classes             @relation(fields: [class_id], references: [id])
+  school        School              @relation(fields: [school_id], references: [id])
+  user          Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])
+  attendance    StudentAttendance[]
+  studentFees   StudentFees[]
+  busFeePayment BusFeePayment[]
+  rteFeePayment RteFeePayment[]
+
+  @@unique([username, school_id]) // ✅ student username unique within school
+  @@index([school_id])
+  @@index([class_id])
+}
+
+model Staff {
+  id          Int     @id @default(autoincrement())
+  username    String
+  designation String
+  name        String?
+  email       String  @default("null")
+  gender      Gender?
+  mobile      String
+  school_id   Int
+  class_ids   Json    @default("null")
+  photo       Bytes?  @default("null")
+  faculty     String  @default("null")
+  class_teacher   Json    @default("null")
+  access      Json @default("null")
+
+  school      School            @relation(fields: [school_id], references: [id])
+  user        Attendance_user   @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
+  attendances StaffAttendance[]
+  classes     Classes[]         @relation("class_ids")
+  classes_teacher     Classes[]         @relation("class_teacher")
+
+  @@unique([username, school_id]) // ✅ username unique within school
+  @@unique([mobile, school_id]) // ✅ mobile unique within school
+  @@index([school_id])
+}
+
+model Admin {
+  id          Int     @id @default(autoincrement())
+  name        String?
+  designation String
+  gender      String  @default("null")
+  mobile      String
+  email       String  @default("example@gmail.com")
+  photo       Bytes?
+  username    String
+  school_id   Int
+  access      Json @default("null")
+  categories      Json @default("null")
+  buttons      Json @default("null")
+  school        School          @relation(fields: [school_id], references: [id])
+  user          Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
+  studentFees   StudentFees[]
+  busFeePayment BusFeePayment[]
+  rteFeePayment RteFeePayment[]
+
+  @@unique([username, school_id]) // ✅ username unique within school
+  @@unique([mobile, school_id]) // ✅ mobile unique within school
+  @@index([school_id])
+}
+
+model StaffAttendance {
+  username  String
+  school_id Int
+  date      DateTime
+  fn_status String   @default("null")
+  an_status String   @default("null")
+
+  school School @relation(fields: [school_id], references: [id])
+  staff  Staff  @relation(fields: [username, school_id], references: [username, school_id])
+
+  @@unique([username, school_id, date], name: "username_school_date_staff")
+  @@index([school_id])
+}
+
+model StudentAttendance {
+  username  String
+  school_id Int
+  class_id  Int
+  date      DateTime
+  fn_status String   @default("null")
+  an_status String   @default("null")
+
+  class   Classes @relation(fields: [class_id], references: [id])
+  student Student @relation(fields: [username, school_id], references: [username, school_id])
+  school  School  @relation(fields: [school_id], references: [id])
+
+  @@unique([username, school_id, date], name: "username_school_date") // ✅ unique per student per day per school
+  @@index([school_id])
+  @@index([class_id])
+}
+
+model ClassTimetable {
+  id           Int       @id @default(autoincrement())
+  schoolId     Int?
+  classesId    Int?
+  dayOfWeek    DayOfWeek
+  periodNumber Int
+  subject      String
+
+  School  School?  @relation(fields: [schoolId], references: [id])
+  Classes Classes? @relation(fields: [classesId], references: [id])
+
+  @@unique([schoolId, classesId, dayOfWeek, periodNumber], name: "schoolId_classesId_dayOfWeek_periodNumber")
+  @@index([schoolId])
+  @@index([classesId])
+}
+
+model Feedback {
+  id         Int      @id @default(autoincrement())
+  username   String
+  name       String
+  email      String
+  feedback   String
+  school_id  Int
+  class_id   Int
+  created_at DateTime @default(now())
+
+  school School  @relation(fields: [school_id], references: [id])
+  class  Classes @relation(fields: [class_id], references: [id])
+}
+
+//add parthi
+model Tickets {
+  id          Int      @id @default(autoincrement())
+  username    String
+  name        String
+  email       String
+  tickets     String
+  school_id   Int
+  status      String   @default("Pending")
+  created_at  DateTime @default(now())
+  modified_at DateTime @default(now())
+
+  school School @relation(fields: [school_id], references: [id])
+}
+
+model Messages {
+  id        Int     @id @default(autoincrement())
+  messages  String  @db.VarChar(200)
+  date      String? @db.VarChar(45)
+  school_id Int
+  role String @default("null")
+
+  school School @relation(fields: [school_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([school_id])
+}
+
+model LeaveRequest {
+  id         Int      @id @default(autoincrement())
+  username   String // The user requesting leave
+  role       Role     @default(student) // Role of requester (optional, helpful for logic)
+  school_id  Int
+  class_id   Int
+  from_date  DateTime // Leave start date
+  to_date    DateTime // Leave end date
+  reason     String? // Optional leave reason
+  status     String   @default("pending") // "pending", "approved", "rejected"
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([username])
+  @@index([school_id, class_id])
+}
+
+model Homework {
+  id            Int      @id @default(autoincrement())
+  school_id     Int
+  class_id      Int
+  title         String
+  subject       String
+  description   String
+  assigned_date DateTime
+  due_date      DateTime
+  assigned_by   String
+  attachments   Json?
+
+  @@index([school_id, class_id])
+}
+
+enum Role {
+  admin
+  staff
+  student
+}

@@ -8,6 +8,7 @@ import {
   Body,
   Delete,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -16,19 +17,25 @@ import * as fs from 'fs';
 import { PrismaService } from '../common/prisma.service';
 import { log } from 'console';
 import { title } from 'process';
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Controller('upload')
 export class UploadController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
   // 🔹 DELETE /upload/video/:id
   @Delete('videos/:id')
   async deleteVideo(@Param('id') id: string) {
-    
-  
-    const res=  await this.prisma.imageAndVideos.delete({
-      where: { id:Number(id) },
+
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const res = await (client as any).imageAndVideos.delete({
+      where: { id: Number(id) },
     });
- 
+
     return { message: 'Video deleted successfully' };
   }
   // 🔹 POST /upload (Image upload)
@@ -72,7 +79,8 @@ export class UploadController {
     const parsedDate = date ? new Date(date) : new Date();
 
     // Save to DB
-    await this.prisma.imageAndVideos.create({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    await (client as any).imageAndVideos.create({
       data: {
         school_id: parseInt(schoolId),
         link: imageUrl,
@@ -105,7 +113,8 @@ export class UploadController {
 
     const parsedDate = date ? new Date(date) : new Date();
 
-    const video = await this.prisma.imageAndVideos.create({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const video = await (client as any).imageAndVideos.create({
       data: {
         school_id: parseInt(schoolId),
         link,
@@ -122,7 +131,8 @@ export class UploadController {
   // 🔹 GET /upload/:schoolId (Fetch all images & videos)
   @Get(':schoolId')
   async getMediaBySchool(@Param('schoolId') schoolId: string) {
-    const records = await this.prisma.imageAndVideos.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const records = await (client as any).imageAndVideos.findMany({
       where: { school_id: parseInt(schoolId) },
       orderBy: { date: 'desc' },
     });
@@ -149,32 +159,34 @@ export class UploadController {
 
     return { images, videos };
   }
-@Get('titles/image/:schoolId')
+  @Get('titles/image/:schoolId')
   async getTitlesSchoolIm(@Param('schoolId') schoolId: string) {
-    const records = await this.prisma.imageAndVideos.findMany({
-      where: { school_id: parseInt(schoolId),type:'IMAGE' },
-      select:{
-        title:true
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const records = await (client as any).imageAndVideos.findMany({
+      where: { school_id: parseInt(schoolId), type: 'IMAGE' },
+      select: {
+        title: true
       },
-      distinct:['title'],
+      distinct: ['title'],
       orderBy: { title: 'desc' },
     });
 
-   
+
     return records;
   }
   @Get('titles/video/:schoolId')
   async getTitlesSchoolVid(@Param('schoolId') schoolId: string) {
-    const records = await this.prisma.imageAndVideos.findMany({
-      where: { school_id: parseInt(schoolId),type:'VIDEO' },
-      select:{
-        title:true
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const records = await (client as any).imageAndVideos.findMany({
+      where: { school_id: parseInt(schoolId), type: 'VIDEO' },
+      select: {
+        title: true
       },
-      distinct:['title'],
+      distinct: ['title'],
       orderBy: { title: 'desc' },
     });
 
-   
+
     return records;
   }
   // 🔹 DELETE /upload/:schoolId/:filename (Delete image from FS & DB)
@@ -191,18 +203,20 @@ export class UploadController {
     }
 
     const imageUrl = `https://smartschoolserver.ramchintech.com/images/${schoolId}/${filename}`;
-    await this.prisma.imageAndVideos.deleteMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    await (client as any).imageAndVideos.deleteMany({
       where: { link: imageUrl },
     });
 
     return { message: 'Image deleted successfully' };
   }
-@Delete('image/:filename')
+  @Delete('image/:filename')
   async deleteImages(
     @Param('filename') filename: string,
   ) {
- 
-    await this.prisma.imageAndVideos.deleteMany({
+
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    await (client as any).imageAndVideos.deleteMany({
       where: { id: Number(filename) },
     });
 

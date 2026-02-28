@@ -1,4 +1,5 @@
-import {  Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HolidaysModule } from './holidays/holidays.module';
@@ -7,19 +8,19 @@ import { StaffModule } from './staff/staff.module';
 import { StudentsModule } from './students/students.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ClassTimetableModule } from './timetable/class-timetable.module';
-import {FeedbackModule} from './feedback/feedback.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { SchoolsModule } from './school/schools.module';
 import { ClassesModule } from './class/classes.module';
 import { AdminModule } from './admin/admin.module';
-import {AuthModule } from './auth/auth.module';
+import { AuthModule } from './auth/auth.module';
 import { AttendanceUserModule } from './attendance-user/attendance-user.module'
 import { MessagesModule } from './messages/messages.module';
 import { LeaveRequestModule } from './leave_request/leave-request.module';
 import { NewsModule } from './news/news.module';
-import { BlockedSchoolModule} from'./blocked-school/blocked-school.module';
+import { BlockedSchoolModule } from './blocked-school/blocked-school.module';
 import { UserModule } from './edit-password/user.module';
-import { HomeworkModule } from'./homework/homework.module';
-import { ExamMarksModule } from'./exam_marks/exam-marks.module';
+import { HomeworkModule } from './homework/homework.module';
+import { ExamMarksModule } from './exam_marks/exam-marks.module';
 import { StudentFeesModule } from './student_fees/student_fees.module';
 import { FeeStructureModule } from './fees/fee_structure.module';
 import { AppPaymentModule } from './app-payment/app_payment.module';
@@ -27,44 +28,60 @@ import { StudentsFeesModule } from './student-fees/student-fees.module';
 import { FeePaymentsModule } from './fee-payments/fee-payments.module';
 import { UploadModule } from './upload/upload.module';
 import { BusFeePaymentModule } from './bus_fee_payment/bus-fee-payment.module';
-import { BusFeeStructureModule} from './bus_fee_structure/bus-fee-structure.module';
-import { RteFeesModule} from './rte-fees/rte-fees.module';
+import { BusFeeStructureModule } from './bus_fee_structure/bus-fee-structure.module';
+import { RteFeesModule } from './rte-fees/rte-fees.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { FinanceModule } from './finance/finance.module';
- @Module({
+import { ExamTimeTableModule } from './exam-time-table/exam-time-table.module';
+import { StudentAttendanceSyncModule } from './modules/sync/student-attendance/student-attendance.sync.module';
+import { SyncModule } from './common/sync/sync.module';
+import { OfflineFirstInterceptor } from './common/sync/offline-first.interceptor';
+import { DatabaseConfigModule } from './common/database/database.module';
+
+@Module({
   imports: [
+    DatabaseConfigModule,
     StudentsModule,
-        HolidaysModule,
-        AttendanceModule,
-         StaffModule,
-         DashboardModule,
-         ClassTimetableModule,
-         FeedbackModule,
-         SchoolsModule,
-         ClassesModule,
-         AdminModule,
-         AuthModule,
-         AttendanceUserModule,
-         MessagesModule,
-         LeaveRequestModule,
-         NewsModule,
-         BlockedSchoolModule,
-         UserModule,
-         HomeworkModule,
-         ExamMarksModule,
-         StudentFeesModule,
-         FeeStructureModule,
-         AppPaymentModule,
-         StudentsFeesModule,
-         FeePaymentsModule,
-         UploadModule,
-         BusFeePaymentModule,
-         BusFeeStructureModule,
-         RteFeesModule,
-         AccountsModule,
-         FinanceModule,
+    HolidaysModule,
+    AttendanceModule,
+    StaffModule,
+    DashboardModule,
+    ClassTimetableModule,
+    FeedbackModule,
+    SchoolsModule,
+    ClassesModule,
+    AdminModule,
+    AuthModule,
+    AttendanceUserModule,
+    MessagesModule,
+    LeaveRequestModule,
+    NewsModule,
+    BlockedSchoolModule,
+    UserModule,
+    HomeworkModule,
+    ExamMarksModule,
+    StudentFeesModule,
+    FeeStructureModule,
+    AppPaymentModule,
+    StudentsFeesModule,
+    FeePaymentsModule,
+    UploadModule,
+    BusFeePaymentModule,
+    BusFeeStructureModule,
+    RteFeesModule,
+    AccountsModule,
+    FinanceModule,
+    ExamTimeTableModule,
+    StudentAttendanceSyncModule,
+    SyncModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: OfflineFirstInterceptor,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule { }

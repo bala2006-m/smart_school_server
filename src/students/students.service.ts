@@ -1,19 +1,26 @@
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 import { PrismaService } from '../common/prisma.service';
 import { RegisterStudentDto } from './dto/register-student.dto';
 import * as bcrypt from 'bcrypt';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
- 
+
 @Injectable()
 export class StudentsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
   async getStudentsWithFlatClassData(schoolId?: string) {
     try {
       const whereClause = schoolId ? { school_id: Number(schoolId), is_left: true } : { is_left: true };
 
+      const client = this.dbConfig.getDatabaseClient(this.request);
       // Use include only, no select at top-level
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: whereClause,
         orderBy: { name: 'asc' },
         include: {
@@ -52,8 +59,9 @@ export class StudentsService {
     try {
 
 
+      const client = this.dbConfig.getDatabaseClient(this.request);
       // Use include only, no select at top-level
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: {
           school_id: Number(schoolId), is_left: true
         },
@@ -74,8 +82,9 @@ export class StudentsService {
     try {
 
 
+      const client = this.dbConfig.getDatabaseClient(this.request);
       // Use include only, no select at top-level
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: {
           school_id: Number(schoolId),
           class_id: Number(classId),
@@ -113,8 +122,9 @@ export class StudentsService {
     try {
 
 
+      const client = this.dbConfig.getDatabaseClient(this.request);
       // Use include only, no select at top-level
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: {
           school_id: Number(schoolId),
           route: {
@@ -141,13 +151,13 @@ export class StudentsService {
     }
   }
 
-
   async fetchRteStudentsSchool(schoolId: number) {
     try {
 
 
+      const client = this.dbConfig.getDatabaseClient(this.request);
       // Use include only, no select at top-level
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: {
           school_id: Number(schoolId),
           isRTE: true, is_left: true,
@@ -184,8 +194,9 @@ export class StudentsService {
 
 
   async fetchBusStudentsSchool(schoolId: number) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     try {
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: {
           school_id: Number(schoolId),
           route: { not: 'null' }, is_left: true
@@ -224,126 +235,9 @@ export class StudentsService {
     }
   }
 
-  async getCombinedStudentReport(
-    schoolId: string,
-    fromDateInput: string,
-    toDateInput: string,
-  ) {
-    try {
-      const fromDate = new Date(fromDateInput);
-      const toDate = new Date(toDateInput);
-      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime()) || fromDate > toDate) {
-        return { status: 'error', message: 'Invalid date range' };
-      }
-
-      // 1. Fetch all students for the school
-      const students = await this.prisma.student.findMany({
-        where: { school_id: Number(schoolId), is_left: true },
-        orderBy: { name: 'asc' },
-        select: {
-          username: true,
-          name: true,
-          gender: true,
-          class_id: true,
-        },
-      });
-
-      // 2. Fetch classes once for all class_ids
-      const classIds = Array.from(new Set(students.map(s => s.class_id)));
-      const classes = await this.prisma.classes.findMany({
-        where: {
-          id: { in: classIds },
-          school_id: Number(schoolId),
-        },
-        select: { id: true, class: true, section: true },
-      });
-      const classMap = new Map(classes.map(c => [c.id, c]));
-
-      // 3. Batch fetch attendance for all students within date range
-      // Use usernames array for filtering
-      const usernames = students.map(s => s.username);
-
-      const attendanceRecords = await this.prisma.studentAttendance.findMany({
-        where: {
-          username: { in: usernames },
-          date: { gte: fromDate, lte: toDate },
-          school_id: Number(schoolId),
-        },
-        select: {
-          username: true,
-          date: true,
-          fn_status: true,
-          an_status: true,
-          class_id: true,
-        },
-        orderBy: { date: 'asc' },
-      });
-
-      // Organize attendance by username
-      const attendanceMap = new Map<string, typeof attendanceRecords>();
-      for (const record of attendanceRecords) {
-        if (!attendanceMap.has(record.username)) {
-          attendanceMap.set(record.username, []);
-        }
-        attendanceMap.get(record.username)!.push(record);
-      }
-
-      // 4. Build detailed student report combining class and attendance info
-      const detailedStudents = students.map(student => {
-        const classInfo = classMap.get(student.class_id) || { class: '', section: '' };
-        const attendance = attendanceMap.get(student.username) || [];
-
-        // Use improved attendance status codes: 'P' and 'A'
-        // Prepare arrays for present/absent half-day dates as ISO strings
-        const fnPresentDates: string[] = [];
-        const anPresentDates: string[] = [];
-        const fnAbsentDates: string[] = [];
-        const anAbsentDates: string[] = [];
-
-        for (const att of attendance) {
-          const dateStr = att.date.toISOString().split('T')[0];
-
-          if (att.fn_status === 'P') fnPresentDates.push(dateStr);
-          if (att.fn_status === 'A') fnAbsentDates.push(dateStr);
-          if (att.an_status === 'P') anPresentDates.push(dateStr);
-          if (att.an_status === 'A') anAbsentDates.push(dateStr);
-        }
-
-        const totalMarking = attendance.length; // two sessions per attendance record
-        const totalPresent = fnPresentDates.length + anPresentDates.length;
-        const totalPercentage = totalMarking > 0
-          ? parseFloat(((totalPresent / totalMarking) * 100).toFixed(2))
-          : 0;
-
-        return {
-          ...student,
-          class: classInfo.class,
-          section: classInfo.section,
-          fnPresentDates,
-          anPresentDates,
-          fnAbsentDates,
-          anAbsentDates,
-          TotalMarking: totalMarking,
-          totalPercentage: `${totalPercentage} %`,
-        };
-      });
-
-      return {
-        status: 'success',
-        students: detailedStudents,
-      };
-    } catch (error) {
-      return {
-        status: 'error',
-        message: `Failed to fetch combined student report `,//${error.message}`,
-        //details: error.message,
-      };
-    }
-  }
-
-
   async getSchoolAndClassByUsername(username: string, school_id: number) {
-    return this.prisma.student.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).student.findUnique({
       where: { username_school_id: { username: username, school_id: Number(school_id) }, is_left: true },
       select: {
         school_id: true,
@@ -352,8 +246,9 @@ export class StudentsService {
     });
   }
   async findByUsername(username: string, school_id: number) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     try {
-      const student = await this.prisma.student.findUnique({
+      const student = await (client as any).student.findUnique({
         where: {
           username_school_id: {
             username,
@@ -401,7 +296,9 @@ export class StudentsService {
 
 
   async registerStudent(dto: RegisterStudentDto) {
-    const existing = await this.prisma.student.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
+    const existing = await (client as any).student.findUnique({
       where: { username_school_id: { username: dto.username, school_id: Number(dto.school_id) }, is_left: true },
     });
 
@@ -409,9 +306,7 @@ export class StudentsService {
       return { status: 'error', message: 'Username already exists' };
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-
-    const student = await this.prisma.student.create({
+    const student = await (client as any).student.create({
       data: {
         username: dto.username,
         name: dto.name,
@@ -426,7 +321,13 @@ export class StudentsService {
     return { status: 'success', student };
   }
   async deleteStudent(username: string, school_id: number) {
-    const exists = await this.prisma.student.findUnique({
+    if (!username) {
+      return { status: 'error', message: 'Missing username' };
+    }
+
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
+    const exists = await (client as any).student.findUnique({
       where: { username_school_id: { username: username, school_id: Number(school_id) }, is_left: true },
     });
 
@@ -434,7 +335,14 @@ export class StudentsService {
       return { status: 'error', message: 'Student not found' };
     }
 
-    await this.prisma.student.delete({ where: { username_school_id: { username: username, school_id: Number(school_id) } } });
+    await (client as any).student.delete({
+      where: {
+        username_school_id: {
+          username: username,
+          school_id: Number(school_id)
+        }
+      }
+    });
 
     return { status: 'success', message: `Student '${username}' deleted.` };
   }
@@ -445,7 +353,8 @@ export class StudentsService {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const user = await this.prisma.attendance_user.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const user = await (client as any).attendance_user.findUnique({
       where: { username_school_id: { username: username, school_id: Number(school_id) } },
     });
 
@@ -455,7 +364,7 @@ export class StudentsService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await this.prisma.attendance_user.update({
+    await (client as any).attendance_user.update({
       where: { username_school_id: { username: username, school_id: Number(school_id) } },
       data: { password: hashedPassword },
     });
@@ -464,7 +373,8 @@ export class StudentsService {
   }
 
   async getAllByClass(class_id: string) {
-    const students = await this.prisma.student.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const students = await (client as any).student.findMany({
       where: { class_id: Number(class_id), is_left: true },
       select: {
         id: true,
@@ -481,6 +391,18 @@ export class StudentsService {
       },
       orderBy: { name: 'asc' },
     });
+    const classes = await (client as any).classes.findUnique({
+      where: { id: Number(class_id) },
+      select: {
+        id: true,
+        class: true,
+        section: true
+      },
+    });
+    for (let i = 0; i < students.length; i++) {
+      students[i]['class'] = classes?.class;
+      students[i]['section'] = classes?.section;
+    }
 
     return {
       status: 'success',
@@ -491,7 +413,8 @@ export class StudentsService {
 
 
   async getNonRteByClass(class_id: string) {
-    const students = await this.prisma.student.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const students = await (client as any).student.findMany({
       where: { class_id: Number(class_id), isRTE: false, is_left: true },
       select: {
         id: true,
@@ -523,7 +446,8 @@ export class StudentsService {
     };
   }
   async getAllByClassAndSchool(class_id: string, school_id: string) {
-    const students = await this.prisma.student.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const students = await (client as any).student.findMany({
       where: { class_id: Number(class_id), school_id: Number(school_id), is_left: true },
       select: {
         id: true,
@@ -548,18 +472,20 @@ export class StudentsService {
     };
   }
   async countStudentsBySchool(schoolId: number): Promise<number> {
-    return await this.prisma.student.count({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return await (client as any).student.count({
       where: {
         school_id: schoolId, is_left: true,
       },
     });
   }
   async getAllStudents(school_id?: string) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     try {
       const whereClause =
         { school_id: Number(school_id), is_left: true };
 
-      const students = await this.prisma.student.findMany({
+      const students = await (client as any).student.findMany({
         where: whereClause,
         orderBy: { name: 'asc' },
         select: {
@@ -590,120 +516,127 @@ export class StudentsService {
     }
   }
 
-  //   async getUsersWithLongestConsecutiveAbsentDays(params: {
-  //   school_id?: number;
-  //   class_id?: number;
-  //   limit: number; // minimum streak length to consider
-  // }) {
-  //   const { school_id, class_id, limit } = params;
+  async getCombinedStudentReport(
+    schoolId: string,
+    fromDateInput: string,
+    toDateInput: string,
+  ) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    try {
+      const fromDate = new Date(fromDateInput);
+      const toDate = new Date(toDateInput);
+      if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime()) || fromDate > toDate) {
+        return { status: 'error', message: 'Invalid date range' };
+      }
 
-  //   if (!limit || limit < 1) {
-  //     throw new Error('limit parameter must be a positive integer');
-  //   }
+      // 1. Fetch all students for the school
+      const students = await (client as any).student.findMany({
+        where: { school_id: Number(schoolId), is_left: true },
+        orderBy: { name: 'asc' },
+        select: {
+          username: true,
+          name: true,
+          gender: true,
+          class_id: true,
+        },
+      });
 
-  //   const where: any = {
-  //     OR: [{ fn_status: 'A' }, { an_status: 'A' }],
-  //   };
-  //   if (school_id !== undefined) where.school_id = Number(school_id);
-  //   if (class_id !== undefined) where.class_id = Number(class_id);
+      // 2. Fetch classes once for all class_ids
+      const classIds = Array.from(new Set(students.map(s => s.class_id)));
+      const classes = await (client as any).classes.findMany({
+        where: {
+          id: { in: classIds },
+          school_id: Number(schoolId),
+        },
+        select: { id: true, class: true, section: true },
+      });
+      const classMap = new Map(classes.map(c => [c.id, c]));
 
-  //   const records = await this.prisma.studentAttendance.findMany({
-  //     where,
-  //     select: {
-  //       username: true,
-  //       date: true,
-  //     },
-  //     orderBy: [{ username: 'asc' }, { date: 'asc' }],
-  //   });
+      // 3. Batch fetch attendance for all students within date range
+      const usernames = students.map(s => s.username);
 
-  //   const grouped: Record<string, Date[]> = {};
-  //   for (const rec of records) {
-  //     if (!grouped[rec.username]) grouped[rec.username] = [];
-  //     grouped[rec.username].push(new Date(rec.date));
-  //   }
+      const attendanceRecords = await (client as any).studentAttendance.findMany({
+        where: {
+          username: { in: usernames },
+          date: { gte: fromDate, lte: toDate },
+          school_id: Number(schoolId),
+        },
+        select: {
+          username: true,
+          date: true,
+          fn_status: true,
+          an_status: true,
+          class_id: true,
+        },
+        orderBy: { date: 'asc' },
+      });
 
-  //   const result: { username: string; dates: string[] }[] = [];
+      // Organize attendance by username
+      const attendanceMap = new Map<string, typeof attendanceRecords>();
+      for (const record of attendanceRecords) {
+        if (!attendanceMap.has(record.username)) {
+          attendanceMap.set(record.username, []);
+        }
+        attendanceMap.get(record.username)!.push(record);
+      }
 
-  //   for (const [username, dates] of Object.entries(grouped)) {
-  //     dates.sort((a, b) => a.getTime() - b.getTime());
+      // 4. Build detailed student report combining class and attendance info
+      const detailedStudents = students.map((student: any) => {
+        const classInfo: any = classMap.get(student.class_id) || { class: '', section: '' };
+        const attendance = attendanceMap.get(student.username) || [];
 
-  //     let maxStreakStartIndex = 0;
-  //     let maxStreakLength = 1;
+        const fnPresentDates: string[] = [];
+        const anPresentDates: string[] = [];
+        const fnAbsentDates: string[] = [];
+        const anAbsentDates: string[] = [];
 
-  //     let currentStreakStartIndex = 0;
-  //     let currentStreakLength = 1;
+        for (const att of attendance) {
+          const dateStr = att.date.toISOString().split('T')[0];
 
-  //     for (let i = 1; i < dates.length; i++) {
-  //       const diff =
-  //         (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24);
-  //       if (diff === 1) {
-  //         // Consecutive day
-  //         currentStreakLength++;
-  //       } else {
-  //         // Sequence breaks here, check if current streak is longest
-  //         if (currentStreakLength > maxStreakLength) {
-  //           maxStreakLength = currentStreakLength;
-  //           maxStreakStartIndex = currentStreakStartIndex;
-  //         }
-  //         // Reset to new streak
-  //         currentStreakStartIndex = i;
-  //         currentStreakLength = 1;
-  //       }
-  //     }
+          if (att.fn_status === 'P') fnPresentDates.push(dateStr);
+          if (att.fn_status === 'A') fnAbsentDates.push(dateStr);
+          if (att.an_status === 'P') anPresentDates.push(dateStr);
+          if (att.an_status === 'A') anAbsentDates.push(dateStr);
+        }
 
-  //     // After loop, check last streak
-  //     if (currentStreakLength > maxStreakLength) {
-  //       maxStreakLength = currentStreakLength;
-  //       maxStreakStartIndex = currentStreakStartIndex;
-  //     }
+        const totalMarking = attendance.length;
+        const totalPresent = fnPresentDates.length + anPresentDates.length;
+        const totalPercentage = totalMarking > 0
+          ? parseFloat(((totalPresent / (totalMarking * 2)) * 100).toFixed(2))
+          : 0;
 
-  //     // Include only if streak is at least `limit`
-  //     if (maxStreakLength >= limit) {
-  //       const streakDates = dates
-  //         .slice(maxStreakStartIndex, maxStreakStartIndex + maxStreakLength)
-  //         .map((d) => d.toISOString().split('T')[0]);
+        return {
+          ...student,
+          class: classInfo.class,
+          section: classInfo.section,
+          fnPresentDates,
+          anPresentDates,
+          fnAbsentDates,
+          anAbsentDates,
+          TotalMarking: totalMarking,
+          totalPercentage: `${totalPercentage} %`,
+        };
+      });
 
-  //       result.push({
-  //         username,
-  //         dates: streakDates,
-  //       });
-  //     }
-  //   }
+      return {
+        status: 'success',
+        students: detailedStudents,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: `Failed to fetch combined student report`,
+      };
+    }
+  }
 
-  //   // Fetch student details for usernames in results
-  //   const usernames = result.map((r) => r.username);
-
-  //   const students = await this.prisma.student.findMany({
-  //     where: {
-  //       username: { in: usernames },
-  //       ...(school_id !== undefined && { school_id: Number(school_id) }),
-  //     },
-  //     select: {
-  //       username: true,
-  //       name: true,
-  //       mobile: true,
-  //       gender:true,
-  //       class_id:true,
-  //     },
-  //   });
-
-  //   const studentMap = new Map(students.map((s) => [s.username, s]));
-
-  //   // Add name and mobile to result objects
-  //   const enrichedResult = result.map((r) => ({
-  //     ...r,
-  //     name: studentMap.get(r.username)?.name || null,
-  //     mobile: studentMap.get(r.username)?.mobile || null,
-  //   }));
-
-  //   return enrichedResult;
-  // }
   async getUsersWithLongestConsecutiveAbsentDays(params: {
     school_id?: number;
     class_id?: number;
     limit: number;
   }) {
     const { school_id, class_id, limit } = params;
+    const client = this.dbConfig.getDatabaseClient(this.request);
 
     if (!limit || limit < 1) {
       throw new Error('limit parameter must be a positive integer');
@@ -715,7 +648,7 @@ export class StudentsService {
     if (school_id !== undefined) where.school_id = Number(school_id);
     if (class_id !== undefined) where.class_id = Number(class_id);
 
-    const records = await this.prisma.studentAttendance.findMany({
+    const records = await (client as any).studentAttendance.findMany({
       where,
       select: {
         username: true,
@@ -767,10 +700,9 @@ export class StudentsService {
       }
     }
 
-    // Fetch student details for usernames in results
     const usernames = result.map((r) => r.username);
 
-    const students = await this.prisma.student.findMany({
+    const students = await (client as any).student.findMany({
       where: {
         username: { in: usernames },
         ...(school_id !== undefined && { school_id: Number(school_id) }), is_left: true,
@@ -786,18 +718,15 @@ export class StudentsService {
 
     const studentMap = new Map(students.map((s) => [s.username, s]));
 
-    // Add name, mobile, gender, class_id, class, section to result objects
     const enrichedResult = await Promise.all(
       result.map(async (r) => {
-        const student = studentMap.get(r.username);
+        const student = studentMap.get(r.username) as any;
         let classDetails: { class: string | null; section: string | null } = { class: null, section: null };
-
 
         if (typeof student?.class_id === 'number') {
           try {
             classDetails = await this.findClassName(student.class_id, Number(school_id));
           } catch (e) {
-            // If not found, keep as null
           }
         }
         return {
@@ -809,14 +738,15 @@ export class StudentsService {
           class: classDetails.class,
           section: classDetails.section,
         };
-
       })
     );
 
     return enrichedResult;
   }
+
   async findClassName(classId: number, schoolId: number) {
-    const cls = await this.prisma.classes.findFirst({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const cls = await (client as any).classes.findFirst({
       where: {
         id: classId,
         school_id: schoolId,
@@ -840,20 +770,20 @@ export class StudentsService {
   async getStudentsWithLowAttendance(params: {
     school_id?: number;
     class_id?: number;
-    thresholdPercent: number; // e.g. 50 for 50%
+    thresholdPercent: number;
   }) {
     const { school_id, class_id, thresholdPercent } = params;
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
     if (thresholdPercent < 0 || thresholdPercent > 100) {
       throw new Error('thresholdPercent must be between 0 and 100');
     }
 
-    // Build filtering for school and class
     const where: any = {};
     if (school_id !== undefined) where.school_id = Number(school_id);
     if (class_id !== undefined) where.class_id = Number(class_id);
 
-    // Fetch all attendance records for filtered students
-    const records = await this.prisma.studentAttendance.findMany({
+    const records = await (client as any).studentAttendance.findMany({
       where,
       select: {
         username: true,
@@ -863,7 +793,6 @@ export class StudentsService {
       orderBy: { username: 'asc' },
     });
 
-    // Group records by user
     const grouped: Record<
       string,
       { presentCount: number; totalCount: number }
@@ -874,25 +803,18 @@ export class StudentsService {
         grouped[rec.username] = { presentCount: 0, totalCount: 0 };
       }
       const userStats = grouped[rec.username];
-
-      // Each record (day) counts as 2 half-days
       userStats.totalCount += 2;
-      console.log(`Processing record for ${rec.username}: fn_status=${rec.fn_status}, an_status=${rec.an_status}`);
-
-
-      // Count present halves
       if (rec.fn_status === 'P') userStats.presentCount += 1;
       if (rec.an_status === 'P') userStats.presentCount += 1;
     }
 
-    // Calculate percentage and filter users below or equal threshold
     const result = Object.entries(grouped)
       .map(([username, stats]) => {
         const percentage = (stats.presentCount / stats.totalCount) * 100;
         return { username, percentage };
       })
       .filter((user) => user.percentage <= thresholdPercent)
-      .sort((a, b) => a.percentage - b.percentage); // optional: lowest attendance first
+      .sort((a, b) => a.percentage - b.percentage);
 
     return result;
   }
@@ -902,7 +824,8 @@ export class StudentsService {
     classId: number,
     schoolId: number,
   ) {
-    return this.prisma.student.findFirst({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).student.findFirst({
       where: {
         username,
         class_id: classId,
@@ -917,17 +840,19 @@ export class StudentsService {
         father_name: true,
         DOB: true,
         route: true,
-
       },
     });
   }
+
   async updateStudent(
     username: string,
     data: UpdateStudentDto,
     school_id: string
   ): Promise<{ status: string; student?: any; message?: string }> {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
     // Find the student by composite unique key (username + school_id)
-    const student = await this.prisma.student.findUnique({
+    const student = await (client as any).student.findUnique({
       where: { username_school_id: { username, school_id: Number(school_id) }, is_left: true },
     });
 
@@ -969,7 +894,7 @@ export class StudentsService {
     }
 
     try {
-      const updated = await this.prisma.student.update({
+      const updated = await (client as any).student.update({
         where: { username_school_id: { username, school_id: Number(school_id) } },
         data: updateData,
       });
@@ -977,13 +902,14 @@ export class StudentsService {
       return { status: 'success', student: updated };
     } catch (e) {
       return {
-        status: 'error', //message: e.message
-
+        status: 'error',
+        message: e.message
       };
     }
   }
   async countUsage(schoolId: string): Promise<number> {
-    const grouped = await this.prisma.studentAttendance.groupBy({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const grouped = await (client as any).studentAttendance.groupBy({
       by: ['date'],
       where: {
         school_id: Number(schoolId),
@@ -998,7 +924,9 @@ export class StudentsService {
     class_id: number,
     username: string,
   ) {
-    const student = await this.prisma.student.findUnique({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
+    const student = await (client as any).student.findUnique({
       where: {
         username_school_id: {
           username,
@@ -1006,7 +934,7 @@ export class StudentsService {
         }, is_left: true
       },
     });
-    
+
     if (!student) {
       throw new BadRequestException({
         status: 'error',
@@ -1033,7 +961,7 @@ export class StudentsService {
       left_at: new Date(),
     });
 
-    await this.prisma.student.update({
+    await (client as any).student.update({
       where: {
         username_school_id: {
           username,

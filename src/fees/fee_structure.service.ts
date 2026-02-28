@@ -1,16 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
-import { title } from 'process';
+
+import { REQUEST } from '@nestjs/core';
+import { DatabaseConfigService } from '../common/database/database.config';
 
 @Injectable()
 export class FeeStructureService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dbConfig: DatabaseConfigService,
+    @Inject(REQUEST) private readonly request: any,
+  ) { }
 
   // ✅ Create new fee structure
   async createFeeStructure(data: any) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
     try {
       // 1️⃣ Check for existing record
-      const existing = await this.prisma.feeStructure.findFirst({
+      const existing = await (client as any).feeStructure.findFirst({
         where: {
           school_id: data.school_id,
           class_id: data.class_id,
@@ -37,7 +44,7 @@ export class FeeStructureService {
       }
 
       // 4️⃣ Create record
-      const newFee = await this.prisma.feeStructure.create({
+      const newFee = await (client as any).feeStructure.create({
         data: {
           school_id: data.school_id,
           class_id: data.class_id,
@@ -61,10 +68,11 @@ export class FeeStructureService {
 
   // ✅ Get all fee structures for a school
   async getAllFeeStructures(schoolId: number) {
-    return this.prisma.feeStructure.findMany({
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).feeStructure.findMany({
       where: { school_id: schoolId },
-      include:{
-        class:true,
+      include: {
+        class: true,
       },
       orderBy: { class_id: 'asc' },
     });
@@ -72,44 +80,48 @@ export class FeeStructureService {
 
   // ✅ Get fee structures by class
   async getFeeStructuresByClass(schoolId: number, classId: number) {
-    return this.prisma.feeStructure.findMany({
-      where: { school_id: schoolId, class_id: classId,status:'active' },
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).feeStructure.findMany({
+      where: { school_id: schoolId, class_id: classId, status: 'active' },
     });
   }
-   async getAllFeeStructuresByClass(schoolId: number, classId: number) {
-    return this.prisma.feeStructure.findMany({
+  async getAllFeeStructuresByClass(schoolId: number, classId: number) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    return (client as any).feeStructure.findMany({
       where: { school_id: schoolId, class_id: classId },
     });
   }
-async getFirstFeeStructuresByClassName(schoolId: number, className: string) {
-  const firstClass = await this.prisma.classes.findFirst({
-    where: {
-      school_id: schoolId,
-      class: className,
-    },
-    orderBy: { id: 'asc' },
-  });
+  async getFirstFeeStructuresByClassName(schoolId: number, className: string) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const firstClass = await (client as any).classes.findFirst({
+      where: {
+        school_id: schoolId,
+        class: className,
+      },
+      orderBy: { id: 'asc' },
+    });
 
-  if (!firstClass) return null;
+    if (!firstClass) return null;
 
-  return this.prisma.feeStructure.findMany({
-    where: {
-      school_id: schoolId,
-      class_id: firstClass.id,
-    },
-    include: {
-      class: true,
-    },
-  });
-}
+    return (client as any).feeStructure.findMany({
+      where: {
+        school_id: schoolId,
+        class_id: firstClass.id,
+      },
+      include: {
+        class: true,
+      },
+    });
+  }
 
   // ✅ Update status (active/inactive)
   async updateStatus(id: number, status: string) {
-    const fee = await this.prisma.feeStructure.findUnique({ where: { id } });
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const fee = await (client as any).feeStructure.findUnique({ where: { id } });
     if (!fee) throw new NotFoundException('Fee structure not found');
-console.log(status);
+    console.log(status);
 
-    return this.prisma.feeStructure.update({
+    return (client as any).feeStructure.update({
       where: { id },
       data: { status },
     });
@@ -117,7 +129,8 @@ console.log(status);
 
   // ✅ Update fee structure
   async updateFeeStructure(id: number, data: any) {
-    const fee = await this.prisma.feeStructure.findUnique({ where: { id } });
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const fee = await (client as any).feeStructure.findUnique({ where: { id } });
     if (!fee) throw new NotFoundException('Fee structure not found');
 
     // Handle dates properly
@@ -130,7 +143,7 @@ console.log(status);
       throw new BadRequestException('End date must be after start date.');
     }
 
-    return this.prisma.feeStructure.update({
+    return (client as any).feeStructure.update({
       where: { id },
       data: {
         title: data.title ?? fee.title,
@@ -146,13 +159,13 @@ console.log(status);
 
   // ✅ Delete a fee structure
   async deleteFeeStructure(id: number) {
-    
-    
-    const fee = await this.prisma.feeStructure.findUnique({ where: { id } });
-   
-    
+    const client = this.dbConfig.getDatabaseClient(this.request);
+
+    const fee = await (client as any).feeStructure.findUnique({ where: { id } });
+
+
     if (!fee) throw new NotFoundException('Fee structure not found');
 
-    return this.prisma.feeStructure.delete({ where: { id } });
+    return (client as any).feeStructure.delete({ where: { id } });
   }
 }
