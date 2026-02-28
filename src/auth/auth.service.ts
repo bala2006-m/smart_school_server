@@ -432,4 +432,47 @@ export class AuthService {
 
     return { status: 'success', message: 'Password updated successfully' };
   }
+
+  async login(body: any) {
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const { username, password, school_id } = body;
+
+    if (!username || !password || !school_id) {
+      throw new BadRequestException('Missing username, password, or school_id');
+    }
+
+    const schoolIdNum = Number(school_id);
+
+    // Try to find the user in attendance_user table first (centralized table)
+    const user = await (client as any).attendance_user.findUnique({
+      where: {
+        username_school_id: {
+          username,
+          school_id: schoolIdNum,
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid username or school ID');
+    }
+
+    // Verify password on server
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Invalid password');
+    }
+
+    return {
+      status: 'success',
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        school_id: user.school_id,
+        password: user.password, // Frontend expects hashed password for local compatibility
+      },
+    };
+  }
 }

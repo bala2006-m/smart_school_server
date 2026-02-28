@@ -350,28 +350,22 @@ export class DatabaseConfigService implements OnModuleDestroy {
   }
 
   getDatabaseClient(request?: any): PrismaClient {
-    const platform = this.detectPlatformFromRequest(request);
-    // this.logger.debug(`Detected platform for request: ${platform}`);
-
-    // Mobile: Always use cloud only
-    if (platform === 'mobile') {
-      return this.config.cloudClient;
-    }
-
-    // Desktop/Web with local DB: Use dual-write proxy
-    if (this.config.localClient && (platform === 'desktop' || platform === 'web')) {
+    // If local database is available, ALWAYS use dual-write proxy
+    // This provides offline fallback for ALL platforms (Mobile, Desktop, Web)
+    if (this.config.localClient) {
       return this.createDualWriteProxy();
     }
 
-    // Fallback to cloud
+    // Fallback to cloud only if no local DB
     return this.config.cloudClient;
   }
 
+
   private detectPlatformFromRequest(request?: any): 'mobile' | 'desktop' | 'web' | 'unknown' {
-    // 1. Check for explicit override header
-    const override = request?.headers?.['x-platform'];
+    // 1. Check for explicit override header (case-insensitive)
+    const override = request?.headers?.['x-platform']?.toLowerCase();
     if (override === 'desktop' || override === 'mobile' || override === 'web') {
-      return override;
+      return override as 'mobile' | 'desktop' | 'web';
     }
 
     if (!request?.headers?.['user-agent']) {
@@ -382,13 +376,12 @@ export class DatabaseConfigService implements OnModuleDestroy {
 
     // 2. Define indicators
     const desktopIndicators = [
-      'windows nt', 'macintosh', 'linux x86_64', 'ubuntu',
+      'windows nt', 'macintosh', 'linux x86_64', 'ubuntu', 'linux i686',
     ];
 
     const mobileIndicators = [
       'mobile', 'android', 'iphone', 'ipad', 'ipod',
       'blackberry', 'windows phone', 'palm', 'webos',
-      // Note: 'flutter' and 'dart' removed from here as they are used by desktop too
     ];
 
     const webIndicators = [
@@ -400,19 +393,22 @@ export class DatabaseConfigService implements OnModuleDestroy {
       return 'desktop';
     }
 
+    // 4. Check for Mobile
     if (mobileIndicators.some(indicator => userAgent.includes(indicator))) {
       return 'mobile';
     }
 
+    // 5. Check for Web
     if (webIndicators.some(indicator => userAgent.includes(indicator))) {
       return 'web';
     }
 
-    // 4. Fallback to general indicators if no specific OS found
+    // 6. Fallback for Flutter/Dart
     if (userAgent.includes('flutter') || userAgent.includes('dart') || userAgent.includes('okhttp')) {
-      // If we see flutter/dart but didn't match 'windows nt' etc., it might be a mobile device
-      // but usually windows/mac/linux will match first.
-      return 'mobile';
+      // If it's Flutter/Dart and not specifically matched as mobile, 
+      // in a hybrid environment it's more likely to be the desktop app
+      // especially since we use custom headers now.
+      return 'desktop';
     }
 
     return 'unknown';

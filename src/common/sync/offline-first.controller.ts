@@ -473,20 +473,8 @@ export class OfflineFirstController {
       console.log(`🎯 Frontend triggered initial sync for school ${schoolId} ${userId ? `(user: ${userId})` : ''}`);
 
       // Check if request is from mobile platform - block ALL sync for mobile users
-      const userAgent = request?.headers?.['user-agent']?.toLowerCase() || '';
-      const mobileAppIndicators = [
-        'mobile', 'android', 'iphone', 'ipad', 'ipod',
-        'blackberry', 'windows phone', 'palm', 'webos',
-        'flutter', 'dart', 'okhttp', 'wv' // Flutter/Dart specific indicators
-      ];
-      const mobileBrowserIndicators = [
-        'mobile safari', 'chrome mobile', 'firefox mobile', 'opera mobile'
-      ];
-      const isMobileApp = mobileAppIndicators.some(indicator => userAgent.includes(indicator));
-      const isMobileBrowser = mobileBrowserIndicators.some(indicator => userAgent.includes(indicator));
-
-      // Block ALL mobile (apps and browsers)
-      if ((isMobileApp || isMobileBrowser) && userAgent.length > 0) {
+      // This now uses the centralized DatabaseConfigService which correctly detects desktop apps
+      if (this.dbConfig.isMobilePlatform(request)) {
         console.log(`📱 Mobile platform detected - BLOCKING ALL sync for school ${schoolId} (user: ${userId})`);
         return {
           status: 'blocked',
@@ -498,6 +486,7 @@ export class OfflineFirstController {
           }
         };
       }
+
 
       // Check if online before performing initial cloud sync
       const syncStatus = this.dbConfig.getSyncStatus();
@@ -521,23 +510,23 @@ export class OfflineFirstController {
         };
       }
 
-      // Trigger initial sync
-      const result = await this.startupSyncService.triggerManualSync(schoolId);
-
-      // Also start periodic sync for this school (with platform detection)
-      await this.loginSyncService.triggerLoginSync(schoolId, userId, request);
+      // Trigger initial sync and start periodic sync IN THE BACKGROUND
+      // This ensures the login process is fast and not blocked by heavy sync operations
+      this.loginSyncService.triggerLoginSync(schoolId, userId, request).catch(err => {
+        console.error(`❌ Background login sync failed for school ${schoolId}: ${err.message}`);
+      });
 
       return {
         status: 'success',
-        message: `Initial sync triggered for school ${schoolId}`,
+        message: `Initial sync started in background for school ${schoolId}`,
         data: {
           schoolId,
           userId: userId,
-          initialSyncResult: result,
           periodicSyncStarted: true,
           timestamp: new Date().toISOString()
         }
       };
+
     } catch (error) {
       return {
         status: 'error',
