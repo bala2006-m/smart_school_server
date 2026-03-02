@@ -1807,11 +1807,18 @@ export class LoginSyncService implements OnModuleInit {
         }
         break;
       case 'rtefeepayment':
-        await localClient.rteFeePayment?.upsert?.({
-          where: { id: item.id },
-          update: item as any,
-          create: item as any
-        });
+        this.logger.log(`🔍 Upserting rtefeepayment record ID: ${item.id}`);
+        try {
+          await localClient.rteFeePayment?.upsert?.({
+            where: { id: item.id },
+            update: item as any,
+            create: item as any
+          });
+          this.logger.log(`✅ rtefeepayment record ${item.id} upserted successfully`);
+        } catch (error) {
+          this.logger.error(`❌ rtefeepayment upsert error for record ${item.id}: ${error.message}`);
+          throw error;
+        }
         break;
       case 'exammarks':
         await localClient.examMarks?.upsert?.({

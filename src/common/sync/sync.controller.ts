@@ -7,7 +7,7 @@ export class SyncController {
   constructor(
     private readonly syncService: SyncService,
     private readonly dbConfig: DatabaseConfigService,
-  ) {}
+  ) { }
 
   @Get('status')
   getSyncStatus() {
@@ -27,12 +27,13 @@ export class SyncController {
     };
   }
 
+  @Get('test-connection')
   @Post('test-connection')
   async testConnections() {
     const config = this.dbConfig.getConfig();
     const results = {
       cloud: await this.testConnection(config.cloudClient, 'Cloud'),
-      local: config.localClient 
+      local: config.localClient
         ? await this.testConnection(config.localClient, 'Local')
         : { status: 'unavailable', message: 'Local client not initialized' },
     };
@@ -45,9 +46,9 @@ export class SyncController {
       await client.$queryRaw`SELECT 1`;
       return { status: 'connected', message: `${name} database connected successfully` };
     } catch (error) {
-      return { 
-        status: 'error', 
-        message: `${name} database connection failed: ${error.message}` 
+      return {
+        status: 'error',
+        message: `${name} database connection failed: ${error.message}`
       };
     }
   }
