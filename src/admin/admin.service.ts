@@ -190,7 +190,25 @@ export class AdminService {
 
     return admins;
   }
+ async getAllAdminPic(school_id?: number) {
 
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    // fetch all admins
+    const admins = await (client as any).admin.findMany({
+      where: {
+        school_id: Number(school_id)
+      },
+      select: {
+        
+        username: true,
+        photo:true,
+        
+      },
+      orderBy: { username: 'asc' },
+    });
+
+    return admins;
+  }
   /**
    * Update an admin’s profile
    */
