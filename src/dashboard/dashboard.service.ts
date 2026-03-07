@@ -246,13 +246,13 @@ export class DashboardService {
 
       const engagement = (attendancePercent * 0.5) + (avgMarks * 0.5); // Simple score
 
-      return { username: student.username, name: student.name, class: student.class?.name || 'Unknown', gender: student.gender || 'Unknown', attendance_percent: attendancePercent, avg_marks: avgMarks, engagement_score: engagement };
+      return { username: student.username, name: student.name, class: student.class?.class || 'Unknown', gender: student.gender || 'Unknown', attendance_percent: attendancePercent, avg_marks: avgMarks, engagement_score: engagement };
     });
 
     return { status: 'success', school_id, insights };
   }
 
-  
+
 }
 
 
