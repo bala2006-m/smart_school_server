@@ -165,6 +165,49 @@ export class DatabaseConfigService implements OnModuleDestroy {
           typeof prop === 'symbol' ||
           (typeof prop === 'string' && (prop.startsWith('$') || prop.startsWith('_')))
         ) {
+          // Intercept raw queries to preserve Cloud/Local fallback logic
+          if (prop === '$queryRaw' || prop === '$queryRawUnsafe') {
+            return async (...args: any[]) => {
+              if (self.isCloudOnline) {
+                try {
+                  return await (cloudClient as any)[prop](...args);
+                } catch (cloudError: any) {
+                  const isConnError = self.isConnectivityError(cloudError);
+                  const shortMsg = isConnError ? 'Database unreachable' : (cloudError.message?.split('\\n')[0] || 'Unknown error');
+                  logger.warn(`Cloud raw query failed, falling back to local: ${String(prop)}: ${shortMsg}`);
+                  if (isConnError) {
+                    self.isCloudOnline = false;
+                  }
+                }
+              }
+              return await (localClient as any)[prop](...args);
+            };
+          }
+
+          if (prop === '$executeRaw' || prop === '$executeRawUnsafe') {
+            return async (...args: any[]) => {
+              const result = await (localClient as any)[prop](...args);
+              if (self.isCloudOnline) {
+                try {
+                  await (cloudClient as any)[prop](...args);
+                  logger.debug(`Cloud sync OK: ${String(prop)}`);
+                } catch (cloudError: any) {
+                  logger.warn(`Cloud raw execute failed: ${String(prop)}: ${cloudError.message}`);
+                  // Note: Queueing raw executes is hard because arguments might contain complex templating,
+                  // but we queue it anyway and hope the arguments survive serialization if needed.
+                  self.queuePendingWrite('$prisma', String(prop), args);
+                  if (self.isConnectivityError(cloudError)) {
+                    self.isCloudOnline = false;
+                    logger.warn('Cloud connection LOST - switching to offline mode');
+                  }
+                }
+              } else {
+                self.queuePendingWrite('$prisma', String(prop), args);
+              }
+              return result;
+            };
+          }
+
           return localValue;
         }
 
@@ -298,10 +341,18 @@ export class DatabaseConfigService implements OnModuleDestroy {
 
     for (const pw of this.pendingWrites) {
       try {
-        const cloudModel = (cloudClient as any)[pw.tableName];
-        if (cloudModel && typeof cloudModel[pw.methodName] === 'function') {
-          await cloudModel[pw.methodName](...pw.args);
-          synced++;
+        if (pw.tableName === '$prisma') {
+          const rawMethod = (cloudClient as any)[pw.methodName];
+          if (typeof rawMethod === 'function') {
+            await rawMethod.apply(cloudClient, pw.args);
+            synced++;
+          }
+        } else {
+          const cloudModel = (cloudClient as any)[pw.tableName];
+          if (cloudModel && typeof cloudModel[pw.methodName] === 'function') {
+            await cloudModel[pw.methodName](...pw.args);
+            synced++;
+          }
         }
       } catch (error: any) {
         pw.retryCount++;
