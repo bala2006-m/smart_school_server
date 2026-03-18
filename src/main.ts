@@ -6,12 +6,13 @@ async function bootstrap() {
   // ✅ ENABLE CORS (required for Flutter Web ↔ local server)
   // Use `origin: true` to reflect the request Origin in dev.
   app.enableCors({
-    origin: true,
+    origin: ['https://smartschool.ramchintech.com'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, x-platform, x-sync-source',
     optionsSuccessStatus: 204,
   });
   await app.listen(3003);
 }
+
 bootstrap();
 

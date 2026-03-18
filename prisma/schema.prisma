@@ -7,6 +7,9 @@ datasource db {
   url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
 }
 
+
+
+
 enum Gender {
   M
   F
@@ -476,6 +479,7 @@ model Student {
   isRTE         Boolean             @default(false)
   is_left       Boolean             @default(true)
   left_detail   Json                @default("null")
+  acadamic_detail   Json            @default("null")
   class         Classes             @relation(fields: [class_id], references: [id])
   school        School              @relation(fields: [school_id], references: [id])
   user          Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])
@@ -691,4 +695,12 @@ enum Role {
   admin
   staff
   student
+}
+
+model AccadamicYear {
+  id            Int      @id @default(autoincrement())
+  school_id     Int
+  start_year      Int
+  end_year      Int
+
 }
