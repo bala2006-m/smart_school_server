@@ -303,23 +303,17 @@ export class AttendanceService {
     const { username, date, session, status, school_id } = dto;
     const attendanceDate = new Date(date);
 
-    const client = this.dbConfig.getDatabaseClient(this.request);
+    if (isNaN(attendanceDate.getTime())) {
+      throw new BadRequestException('Invalid date format');
+    }
+    if (isNaN(Number(school_id))) {
+      throw new BadRequestException('Invalid school_id');
+    }
 
-    const existing = await (client as any).staffAttendance.findUnique({
-      where: {
-        username_school_date_staff: {
-          username,
-          date: attendanceDate,
-          school_id: Number(school_id)
-        },
-      },
-    });
+    try {
+      const client = this.dbConfig.getDatabaseClient(this.request);
 
-    const fn_status = session === 'FN' ? status : 'NM';
-    const an_status = session === 'AN' ? status : 'NM';
-
-    if (existing) {
-      await (client as any).staffAttendance.update({
+      const existing = await (client as any).staffAttendance.findUnique({
         where: {
           username_school_date_staff: {
             username,
@@ -327,24 +321,42 @@ export class AttendanceService {
             school_id: Number(school_id)
           },
         },
-        data: {
-          fn_status: session === 'FN' ? status : existing.fn_status,
-          an_status: session === 'AN' ? status : existing.an_status,
-        },
       });
-    } else {
-      await (client as any).staffAttendance.create({
-        data: {
-          username,
-          date: attendanceDate,
-          fn_status,
-          an_status,
-          school_id: Number(school_id),
-        },
-      });
-    }
 
-    return { status: 'success', message: 'Staff attendance recorded' };
+      const fn_status = session === 'FN' ? status : 'NM';
+      const an_status = session === 'AN' ? status : 'NM';
+
+      if (existing) {
+        await (client as any).staffAttendance.update({
+          where: {
+            username_school_date_staff: {
+              username,
+              date: attendanceDate,
+              school_id: Number(school_id)
+            },
+          },
+          data: {
+            fn_status: session === 'FN' ? status : existing.fn_status,
+            an_status: session === 'AN' ? status : existing.an_status,
+          },
+        });
+      } else {
+        await (client as any).staffAttendance.create({
+          data: {
+            username,
+            date: attendanceDate,
+            fn_status,
+            an_status,
+            school_id: Number(school_id),
+          },
+        });
+      }
+
+      return { status: 'success', message: 'Staff attendance recorded' };
+    } catch (e) {
+      console.error('Error in markStaffAttendance:', e);
+      throw new InternalServerErrorException('Failed to record staff attendance');
+    }
   }
 
   async getStaffDailySummary(username: string, date: string, school_id: number) {

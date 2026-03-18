@@ -3,10 +3,9 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // ✅ ENABLE CORS (required for Flutter Web ↔ local server)
-  // Use `origin: true` to reflect the request Origin in dev.
+ 
   app.enableCors({
-    origin: ['https://smartschool.ramchintech.com'],
+    origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, x-platform, x-sync-source',
     optionsSuccessStatus: 204,
