@@ -13,7 +13,7 @@ import { SyncService } from '../sync/sync.service';
 
 @WSGateway({
   cors: {
-    origin: '*',
+    origin: ['https://smartschool.ramchintech.com'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
