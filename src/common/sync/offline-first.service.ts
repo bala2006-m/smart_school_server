@@ -281,74 +281,116 @@ export class OfflineFirstService {
   }
 
   private getWhereClause(tableName: string, data: any): any {
+    if (!data) return null;
+
+    const safeParseInt = (val: any) => {
+      if (val === undefined || val === null || val === '') return NaN;
+      const parsed = parseInt(String(val));
+      return isNaN(parsed) ? NaN : parsed;
+    };
+
+    // Helper to check if any required numeric ID is NaN
+    const hasNaN = (...ids: number[]) => ids.some(id => isNaN(id));
+
     // Handle specific tables with composite unique keys
     switch (tableName) {
-      case 'StudentAttendance':
+      case 'StudentAttendance': {
+        const school_id = safeParseInt(data.school_id);
+        if (!data.username || !data.date || isNaN(school_id)) return null;
+
         return {
           username_school_date: {
             username: data.username,
-            school_id: parseInt(data.school_id),
+            school_id,
             date: new Date(data.date)
           }
         };
-      case 'StaffAttendance':
+      }
+      case 'StaffAttendance': {
+        const school_id = safeParseInt(data.school_id);
+        if (!data.username || !data.date || isNaN(school_id)) return null;
+
         return {
           username_school_date_staff: {
             username: data.username,
-            school_id: parseInt(data.school_id),
+            school_id,
             date: new Date(data.date)
           }
         };
-      case 'ExamMarks':
+      }
+      case 'ExamMarks': {
+        const school_id = safeParseInt(data.school_id);
+        const class_id = safeParseInt(data.class_id);
+        if (!data.username || !data.title || hasNaN(school_id, class_id)) return null;
+
         return {
           unique_exam_per_student: {
-            school_id: parseInt(data.school_id),
-            class_id: parseInt(data.class_id),
+            school_id,
+            class_id,
             username: data.username,
             title: data.title
           }
         };
-      case 'FeeStructure':
+      }
+      case 'FeeStructure': {
+        const school_id = safeParseInt(data.school_id);
+        const class_id = safeParseInt(data.class_id);
+        if (!data.title || hasNaN(school_id, class_id)) return null;
+
         return {
           unique_fee_per_class: {
-            school_id: parseInt(data.school_id),
-            class_id: parseInt(data.class_id),
+            school_id,
+            class_id,
             title: data.title
           }
         };
-      case 'ClassTimetable':
+      }
+      case 'ClassTimetable': {
+        const schoolId = safeParseInt(data.school_id || data.schoolId);
+        const classesId = safeParseInt(data.class_id || data.classesId);
+        const periodNumber = safeParseInt(data.periodNumber);
+        if (!data.dayOfWeek || hasNaN(schoolId, classesId, periodNumber)) return null;
+
         return {
           schoolId_classesId_dayOfWeek_periodNumber: {
-            schoolId: parseInt(data.school_id || data.schoolId),
-            classesId: parseInt(data.class_id || data.classesId),
+            schoolId,
+            classesId,
             dayOfWeek: data.dayOfWeek,
-            periodNumber: parseInt(data.periodNumber)
+            periodNumber
           }
         };
-      case 'ExamTimeTable':
+      }
+      case 'ExamTimeTable': {
+        const school_id = safeParseInt(data.school_id);
+        const class_id = safeParseInt(data.class_id);
+        if (!(data.exam_title || data.title) || hasNaN(school_id, class_id)) return null;
+
         return {
           unique_exam_per_student: {
-            school_id: parseInt(data.school_id),
-            class_id: parseInt(data.class_id),
+            school_id,
+            class_id,
             exam_title: data.exam_title || data.title
           }
         };
+      }
       case 'Attendance_user':
       case 'Student':
       case 'Staff':
-      case 'Admin':
-        if (data.username && data.school_id) {
+      case 'Admin': {
+        const school_id = safeParseInt(data.school_id);
+        if (data.username && !isNaN(school_id)) {
           return {
             username_school_id: {
               username: data.username,
-              school_id: parseInt(data.school_id)
+              school_id
             }
           };
         }
-        return { id: data.id };
+        return data.id ? { id: data.id } : null;
+      }
       default:
         // Default to id
-        return { id: data.id };
+        return data.id ? { id: data.id } : null;
     }
   }
 

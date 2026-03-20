@@ -4,245 +4,188 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
+  url      = "mysql://root:bala30012006@localhost:3306/ramchin_smart_school_local"
 }
 
+model admin {
+  id              Int             @id @default(autoincrement())
+  name            String?
+  designation     String
+  gender          String          @default("null")
+  mobile          String
+  email           String          @default("example@gmail.com")
+  photo           Bytes?
+  username        String
+  school_id       Int
+  access          Json
+  categories      Json
+  buttons         Json
+  updated_at      DateTime        @default(now())
+  is_deleted      Boolean         @default(false)
+  sync_status     String          @default("synced")
+  school          school          @relation(fields: [school_id], references: [id], map: "Admin_school_id_fkey")
+  attendance_user attendance_user @relation(fields: [username, school_id], references: [username, school_id], map: "Admin_username_school_id_fkey")
+  busfeepayment   busfeepayment[]
+  rtefeepayment   rtefeepayment[]
+  studentfees     studentfees[]
 
-
-
-enum Gender {
-  M
-  F
-  O
+  @@unique([mobile, school_id], map: "Admin_mobile_school_id_key")
+  @@unique([username, school_id], map: "Admin_username_school_id_key")
+  @@index([school_id], map: "Admin_school_id_idx")
 }
 
-enum FeeStatus {
-  active
-  inactive
+model apppayment {
+  id            Int                    @id @default(autoincrement())
+  schoolId      Int
+  studentsCount Int
+  paymentPlan   apppayment_paymentPlan
+  amount        Float
+  paidAt        DateTime               @default(now())
+  periodStart   DateTime
+  periodEnd     DateTime
+  transactionId String?
+  status        apppayment_status      @default(PENDING)
+  createdAt     DateTime               @default(now())
+  updated_at    DateTime               @default(now())
+  is_deleted    Boolean                @default(false)
+  sync_status   String                 @default("synced")
+  school        school                 @relation(fields: [schoolId], references: [id], map: "AppPayment_schoolId_fkey")
+
+  @@index([schoolId], map: "AppPayment_schoolId_fkey")
 }
 
-enum StudentFeesStatus {
-  PENDING
-  PARTIALLY_PAID
-  PAID
+model attendance_user {
+  id              Int               @id @default(autoincrement())
+  username        String
+  password        String
+  role            String
+  school_id       Int
+  fcmToken        String?
+  status          String            @default("active")
+  updated_at      DateTime          @default(now())
+  is_deleted      Boolean           @default(false)
+  sync_status     String            @default("synced")
+  admin           admin?
+  school          school            @relation(fields: [school_id], references: [id], map: "Attendance_user_school_id_fkey")
+  realtimemessage realtimemessage[]
+  staff           staff?
+  student         student?
+
+  @@unique([username, school_id], map: "Attendance_user_username_school_id_key")
+  @@index([school_id], map: "Attendance_user_school_id_idx")
 }
 
-enum DayOfWeek {
-  Mon
-  Tue
-  Wed
-  Thu
-  Fri
-  Sat
+model blockedschool {
+  id          Int      @id @default(autoincrement())
+  school_id   Int      @unique(map: "BlockedSchool_school_id_key")
+  reason      String
+  updated_at  DateTime @default(now())
+  is_deleted  Boolean  @default(false)
+  sync_status String   @default("synced")
+  school      school   @relation(fields: [school_id], references: [id], map: "BlockedSchool_school_id_fkey")
+
+  @@index([school_id], map: "BlockedSchool_school_id_idx")
 }
 
-enum ImageAndVideosType {
-  IMAGE
-  VIDEO
-}
-
-enum BusFeesStatus {
-  PENDING
-  PARTIALLY_PAID
-  PAID
-}
-
-enum FinanceType {
-  INCOME
-  EXPENSE
-  DRAWING_IN
-  DRAWING_OUT
-}
-
-model Finance {
-  id         Int         @id @default(autoincrement())
-  school_id  Int
-  amount     Float
-  reason     String?
-  type       FinanceType
-  created_by String
-  created_at DateTime    @default(now())
-  updated_by String
-  updated_at DateTime    @updatedAt
-  is_deleted Boolean     @default(false)
-  sync_status String     @default("synced")
-
-  school School @relation(fields: [school_id], references: [id])
-}
-
-model RteStructure {
-  id           Int      @id @default(autoincrement())
-  school_id    Int
-  class_id     Int
-  descriptions Json?
-  amounts      Json?
-  total_amount Float?
-  created_by   String
-  created_at   DateTime @default(now())
-  updated_by   String
-  updated_at   DateTime @updatedAt
-  status       String   @default("inactive") // "active" or "inactive"
-  is_deleted   Boolean  @default(false)
-  sync_status  String   @default("synced")
-  class        Classes  @relation(fields: [class_id], references: [id])
-  school       School   @relation(fields: [school_id], references: [id])
-
-  rteFeePayment RteFeePayment[]
-}
-
-model RteFeePayment {
-  id                   Int           @id @default(autoincrement())
-  school_id            Int
-  class_id             Int
-  student_id           String
-  rte_fee_structure_id Int
-  payment_date         DateTime      @default(now())
-  amount_paid          Float
-  payment_mode         String
-  reference_number     String?
-  status               BusFeesStatus
-  created_by           String
-  created_at           DateTime      @default(now())
-  updated_at           DateTime      @default(now()) @updatedAt
-  is_deleted           Boolean       @default(false)
-  sync_status          String        @default("synced")
-
-  // Relations
-  RteStructure RteStructure @relation(fields: [rte_fee_structure_id], references: [id])
-  student      Student      @relation(fields: [student_id, school_id], references: [username, school_id])
-  admin        Admin        @relation(fields: [created_by, school_id], references: [username, school_id])
-  school       School       @relation(fields: [school_id], references: [id])
-  classes      Classes      @relation(fields: [class_id], references: [id])
-}
-
-model BusFeePayment {
-  id                   Int           @id @default(autoincrement())
+model busfeepayment {
+  id                   Int                  @id @default(autoincrement())
   school_id            Int
   class_id             Int
   student_id           String
   bus_fee_structure_id Int
-  payment_date         DateTime      @default(now())
+  payment_date         DateTime             @default(now())
   amount_paid          Float
   payment_mode         String
   reference_number     String?
-  status               BusFeesStatus
+  status               busfeepayment_status
   remarks              String?
   created_by           String
-  created_at           DateTime      @default(now())
+  created_at           DateTime             @default(now())
   updated_by           String
-  updated_at           DateTime     @default(now())  @updatedAt 
-  is_deleted           Boolean       @default(false)
-  sync_status          String        @default("synced")
+  updated_at           DateTime             @default(now())
+  is_deleted           Boolean              @default(false)
+  sync_status          String               @default("synced")
+  busfeestructure      busfeestructure      @relation(fields: [bus_fee_structure_id], references: [id], map: "BusFeePayment_bus_fee_structure_id_fkey")
+  classes              classes              @relation(fields: [class_id], references: [id], map: "BusFeePayment_class_id_fkey")
+  admin                admin                @relation(fields: [created_by, school_id], references: [username, school_id], map: "BusFeePayment_created_by_school_id_fkey")
+  school               school               @relation(fields: [school_id], references: [id], map: "BusFeePayment_school_id_fkey")
+  student              student              @relation(fields: [student_id, school_id], references: [username, school_id], map: "BusFeePayment_student_id_school_id_fkey")
 
-  // Relations
-  busFeeStructure BusFeeStructure @relation(fields: [bus_fee_structure_id], references: [id])
-  student         Student         @relation(fields: [student_id, school_id], references: [username, school_id])
-  admin           Admin           @relation(fields: [created_by, school_id], references: [username, school_id])
-  school          School          @relation(fields: [school_id], references: [id])
-  classes         Classes         @relation(fields: [class_id], references: [id])
+  @@index([bus_fee_structure_id], map: "BusFeePayment_bus_fee_structure_id_fkey")
+  @@index([class_id], map: "BusFeePayment_class_id_fkey")
+  @@index([created_by, school_id], map: "BusFeePayment_created_by_school_id_fkey")
+  @@index([school_id], map: "BusFeePayment_school_id_fkey")
+  @@index([student_id, school_id], map: "BusFeePayment_student_id_school_id_fkey")
 }
 
-model BusFeeStructure {
-  id           Int       @id @default(autoincrement())
-  school_id    Int
-  route        String
-  term         String
-  amount_month Float
-  total_amount Float
-  status       String    @default("inactive") // "active" or "inactive"
-  start_date   DateTime? @default(now())
-  end_date     DateTime?
-  created_by   String
-  created_at   DateTime  @default(now())
-  updated_by   String
-  updated_at   DateTime @default(now()) @updatedAt
-  is_deleted   Boolean   @default(false)
-  sync_status  String    @default("synced")
+model busfeestructure {
+  id            Int             @id @default(autoincrement())
+  school_id     Int
+  route         String
+  term          String
+  amount_month  Float
+  total_amount  Float
+  status        String          @default("inactive")
+  start_date    DateTime?       @default(now())
+  end_date      DateTime?
+  created_by    String
+  created_at    DateTime        @default(now())
+  updated_by    String
+  updated_at    DateTime        @default(now())
+  is_deleted    Boolean         @default(false)
+  sync_status   String          @default("synced")
+  busfeepayment busfeepayment[]
+  school        school          @relation(fields: [school_id], references: [id], map: "BusFeeStructure_school_id_fkey")
 
-  busFeePayment BusFeePayment[]
-  school        School          @relation(fields: [school_id], references: [id])
+  @@index([school_id], map: "BusFeeStructure_school_id_fkey")
 }
 
-model ImageAndVideos {
-  id          Int                @id @default(autoincrement())
-  school_id   Int
-  link        String
-  type        ImageAndVideosType
-  title       String?
-  description String?
-  date        DateTime?
-  updated_at  DateTime          @default(now()) @updatedAt
-  is_deleted  Boolean            @default(false)
-  sync_status String             @default("synced")
+model classes {
+  id                Int                 @id @default(autoincrement())
+  class             String
+  section           String
+  school_id         Int
+  updated_at        DateTime            @default(now())
+  is_deleted        Boolean             @default(false)
+  sync_status       String              @default("synced")
+  busfeepayment     busfeepayment[]
+  school            school              @relation(fields: [school_id], references: [id], map: "Classes_school_id_fkey")
+  classtimetable    classtimetable[]
+  exammarks         exammarks[]
+  examtimetable     examtimetable[]
+  feedback          feedback[]
+  feestructure      feestructure[]
+  rtefeepayment     rtefeepayment[]
+  rtestructure      rtestructure[]
+  student           student[]
+  studentattendance studentattendance[]
+  studentfees       studentfees[]
+  staff             staff[]             @relation("class_ids")
+  class_teacher     staff[]             @relation("class_teacher")
+  holidays          holidays[]          @relation("holidayclasses")
 
-  school School @relation(fields: [school_id], references: [id])
+  @@index([school_id], map: "Classes_school_id_idx")
 }
 
-model FeeStructure {
-  id           Int       @id @default(autoincrement())
-  school_id    Int
-  class_id     Int
-  title        String?
-  descriptions Json?
-  amounts      Json?
-  total_amount Float?
-  start_date   DateTime? @default(now())
-  end_date     DateTime?
-  created_by   String
-  created_at   DateTime  @default(now())
-  updated_by   String
-  updated_at   DateTime  @updatedAt
-  status       String    @default("inactive") // "active" or "inactive"
-  is_deleted   Boolean   @default(false)
-  sync_status  String    @default("synced")
+model classtimetable {
+  id           Int                      @id @default(autoincrement())
+  schoolId     Int?
+  classesId    Int?
+  dayOfWeek    classtimetable_dayOfWeek
+  periodNumber Int
+  subject      String
+  updated_at   DateTime                 @default(now())
+  is_deleted   Boolean                  @default(false)
+  sync_status  String                   @default("synced")
+  classes      classes?                 @relation(fields: [classesId], references: [id], map: "ClassTimetable_classesId_fkey")
+  school       school?                  @relation(fields: [schoolId], references: [id], map: "ClassTimetable_schoolId_fkey")
 
-  class       Classes       @relation(fields: [class_id], references: [id])
-  school      School        @relation(fields: [school_id], references: [id])
-  studentFees StudentFees[]
-
-  @@unique([school_id, class_id, title], name: "unique_fee_per_class")
+  @@unique([schoolId, classesId, dayOfWeek, periodNumber], map: "ClassTimetable_schoolId_classesId_dayOfWeek_periodNumber_key")
+  @@index([classesId], map: "ClassTimetable_classesId_idx")
+  @@index([schoolId], map: "ClassTimetable_schoolId_idx")
 }
 
-model StudentFees {
-  aId          Int               @id @default(autoincrement())
-  id           Int
-  school_id    Int
-  class_id     Int
-  username     String
-  total_amount Float
-  paid_amount  Float
-  status       StudentFeesStatus @default(PENDING)
-  createdBy    String
-  createdAt    DateTime?
-  remarks      String?
-  updated_at   DateTime        @default(now())  @updatedAt
-  is_deleted   Boolean           @default(false)
-  sync_status  String            @default("synced")
-
-  user         Student       @relation(fields: [username, school_id], references: [username, school_id])
-  class        Classes       @relation(fields: [class_id], references: [id])
-  school       School        @relation(fields: [school_id], references: [id])
-  feeStructure FeeStructure  @relation(fields: [id], references: [id])
-  payments     FeePayments[]
-  admin        Admin         @relation(fields: [createdBy, school_id], references: [username, school_id])
-}
-
-model FeePayments {
-  id             Int      @id @default(autoincrement())
-  student_fee_id Int
-  amount         Float
-  payment_date   DateTime @default(now())
-  method         String?
-  transaction_id String?
-  status         String   @default("pending")
-  updated_at     DateTime @default(now()) @updatedAt
-  is_deleted     Boolean  @default(false)
-  sync_status    String   @default("synced")
-
-  studentFee StudentFees @relation(fields: [student_fee_id], references: [aId])
-}
-
-model ExamMarks {
+model exammarks {
   id            Int      @id @default(autoincrement())
   school_id     Int
   class_id      Int
@@ -256,424 +199,134 @@ model ExamMarks {
   created_by    String
   created_at    DateTime @default(now())
   updated_by    String
-  updated_at    DateTime @updatedAt
+  updated_at    DateTime
   status        String?  @default("inactive")
   date          Json
   session       Json
   is_deleted    Boolean  @default(false)
   sync_status   String   @default("synced")
+  classes       classes  @relation(fields: [class_id], references: [id], map: "ExamMarks_class_id_fkey")
+  school        school   @relation(fields: [school_id], references: [id], map: "ExamMarks_school_id_fkey")
 
-  class  Classes @relation(fields: [class_id], references: [id])
-  school School  @relation(fields: [school_id], references: [id])
-
-  @@unique([school_id, class_id, username, title], name: "unique_exam_per_student")
+  @@unique([school_id, class_id, username, title], map: "ExamMarks_school_id_class_id_username_title_key")
+  @@index([class_id], map: "ExamMarks_class_id_fkey")
 }
 
-model ExamTimeTable {
-  id         Int    @id @default(autoincrement())
-  school_id  Int
-  class_id   Int
-  exam_title String
-  subjects   Json
-
-  created_by String
-  created_at DateTime @default(now())
-  date       Json
-  session    Json
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  class  Classes @relation(fields: [class_id], references: [id])
-  school School  @relation(fields: [school_id], references: [id])
-
-  @@unique([school_id, class_id, exam_title], name: "unique_exam_per_student")
-}
-
-model Attendance_user {
-  id         Int               @id @default(autoincrement())
-  username   String
-  password   String
-  role       String
-  school_id  Int
-  fcmToken   String?
-  status     String            @default("active")
-  updated_at DateTime          @default(now()) @updatedAt
-  is_deleted Boolean           @default(false)
-  sync_status String            @default("synced")
-  school     School            @relation(fields: [school_id], references: [id])
-  staff      Staff?            @relation("UserToStaff1")
-  students   Student[]
-  admin      Admin?
-  messages   RealTimeMessage[]
-
-  @@unique([username, school_id], name: "username_school_id") // usernames unique per school
-  @@index([school_id])
-}
-
-model RealTimeMessage {
-  id        Int      @id @default(autoincrement())
-  text      String
-  role      String
-  school_id Int
-  classId   Int?
-  createdAt DateTime @default(now())
-  sync_status String   @default("synced")
-
-  senderId   Int
-  sender     Attendance_user @relation(fields: [senderId], references: [id])
-  senderName String
-
-  school School @relation(fields: [school_id], references: [id])
-
-  @@index([school_id])
-  @@index([senderId])
-}
-
-model AppPayment {
-  id            Int              @id @default(autoincrement())
-  schoolId      Int
-  school        School           @relation(fields: [schoolId], references: [id])
-  studentsCount Int // Students at time of payment
-  paymentPlan   AppPaymentPlan
-  amount        Float
-  paidAt        DateTime         @default(now())
-  periodStart   DateTime // Billing period start
-  periodEnd     DateTime // Billing period end
-  transactionId String? // Payment gateway transaction ID
-  status        AppPaymentStatus @default(PENDING)
-  createdAt     DateTime         @default(now())
-  updated_at    DateTime         @default(now()) @updatedAt
-  is_deleted    Boolean          @default(false)
-  sync_status   String           @default("synced")
-}
-
-enum AppPaymentPlan {
-  MONTHLY
-  YEARLY
-}
-
-enum AppPaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-}
-
-model School {
-  id             Int       @id @default(autoincrement())
-  name           String    @unique
-  address        String
-  photo          Bytes?
-  createdAt      DateTime? @default(now())
-  dueDate        DateTime?
-  student_access Json      @default("null")
-  updated_at     DateTime @default(now())  @updatedAt
-  is_deleted     Boolean   @default(false)
-  sync_status    String    @default("synced")
-
-  users              Attendance_user[]
-  staff              Staff[]
-  classes            Classes[]
-  holidays           Holidays[]
-  students           Student[]
-  feedbacks          Feedback[]
-  classTimetables    ClassTimetable[]
-  staffAttendances   StaffAttendance[]
-  studentAttendances StudentAttendance[]
-  admins             Admin[]
-  Messages           Messages[]
-  Tickets            Tickets[]
-  blockedSchool      BlockedSchool[]
-  messages           RealTimeMessage[]
-  examMarks          ExamMarks[]
-  feeStructure       FeeStructure[]
-  studentFees        StudentFees[]
-  appPayment         AppPayment[]
-  imageAndVideos     ImageAndVideos[]
-  busFeeStructure    BusFeeStructure[]
-  busFeePayment      BusFeePayment[]
-  rteStructure       RteStructure[]
-  rteFeePayment      RteFeePayment[]
-  Finance            Finance[]
-  examTimeTable      ExamTimeTable[]
-}
-
-model BlockedSchool {
-  id         Int      @id @default(autoincrement())
-  school_id  Int      @unique
-  reason     String
-  school     School   @relation(fields: [school_id], references: [id])
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  @@index([school_id])
-}
-
-model Classes {
-  id         Int      @id @default(autoincrement())
-  class      String   @map("class")
-  section    String
-  school_id  Int
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  school            School              @relation(fields: [school_id], references: [id])
-  holidays          Holidays[]          @relation("HolidayClasses")
-  staff             Staff[]             @relation("class_ids")
-  class_teacher     Staff[]             @relation("class_teacher")
-  students          Student[]
-  studentAttendance StudentAttendance[]
-  classTimetables   ClassTimetable[]
-  feedbacks         Feedback[]
-  examMarks         ExamMarks[]
-  feeStructure      FeeStructure[]
-  studentFees       StudentFees[]
-  busFeePayment     BusFeePayment[]
-  rteStructure      RteStructure[]
-  rteFeePayment     RteFeePayment[]
-  examTimeTable     ExamTimeTable[]
-
-  @@index([school_id])
-}
-
-model Holidays {
-  id         Int      @id @default(autoincrement())
-  date       DateTime
-  reason     String
-  school_id  Int?
-  class_ids  Json
-  fn         String?  @db.Char(1)
-  an         String   @db.Char(1)
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  school  School?   @relation(fields: [school_id], references: [id])
-  classes Classes[] @relation("HolidayClasses")
-
-  @@index([school_id])
-}
-
-model Student {
-  id         Int      @id @default(autoincrement())
-  username   String
-  name       String?
-  gender     Gender?
-  email      String
-  mobile     String
-  class_id   Int
-  school_id  Int
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  photo         Bytes?
-  father_name   String              @default("null")
-  community     String              @default("null")
-  DOB           DateTime?           @default(now())
-  route         String              @default("null")
-  address       String              @default("null")
-  date_of_join  DateTime?           @default(now())
-  isRTE         Boolean             @default(false)
-  is_left       Boolean             @default(true)
-  left_detail   Json                @default("null")
-  acadamic_detail   Json            @default("null")
-  class         Classes             @relation(fields: [class_id], references: [id])
-  school        School              @relation(fields: [school_id], references: [id])
-  user          Attendance_user     @relation(fields: [username, school_id], references: [username, school_id])
-  attendance    StudentAttendance[]
-  studentFees   StudentFees[]
-  busFeePayment BusFeePayment[]
-  rteFeePayment RteFeePayment[]
-
-  @@unique([username, school_id], name: "username_school_id") // ✅ student username unique within school
-  @@index([school_id])
-  @@index([class_id])
-}
-
-model Staff {
-  id            Int      @id @default(autoincrement())
-  username      String
-  designation   String
-  name          String?
-  email         String   @default("null")
-  gender        Gender?
-  mobile        String
-  school_id     Int
-  class_ids     Json     @default("null")
-  photo         Bytes?   @default("null")
-  faculty       String   @default("null")
-  class_teacher Json     @default("null")
-  access        Json     @default("null")
-  updated_at    DateTime @default(now()) @updatedAt
-  is_deleted    Boolean  @default(false)
-  sync_status   String   @default("synced")
-
-  school          School            @relation(fields: [school_id], references: [id])
-  user            Attendance_user   @relation("UserToStaff1", fields: [username, school_id], references: [username, school_id], onDelete: Restrict, onUpdate: Cascade)
-  attendances     StaffAttendance[]
-  classes         Classes[]         @relation("class_ids")
-  classes_teacher Classes[]         @relation("class_teacher")
-
-  @@unique([username, school_id]) // ✅ username unique within school
-  @@unique([mobile, school_id]) // ✅ mobile unique within school
-  @@index([school_id])
-}
-
-model Admin {
+model examtimetable {
   id          Int      @id @default(autoincrement())
-  name        String?
-  designation String
-  gender      String   @default("null")
-  mobile      String
-  email       String   @default("example@gmail.com")
-  photo       Bytes?
-  username    String
   school_id   Int
-  access      Json     @default("null")
-  categories  Json     @default("null")
-  buttons     Json     @default("null")
-  updated_at  DateTime @default(now()) @updatedAt
+  class_id    Int
+  exam_title  String
+  subjects    Json
+  created_by  String
+  created_at  DateTime @default(now())
+  date        Json
+  session     Json
+  updated_at  DateTime @default(now())
   is_deleted  Boolean  @default(false)
   sync_status String   @default("synced")
+  classes     classes  @relation(fields: [class_id], references: [id], map: "ExamTimeTable_class_id_fkey")
+  school      school   @relation(fields: [school_id], references: [id], map: "ExamTimeTable_school_id_fkey")
 
-  school        School          @relation(fields: [school_id], references: [id])
-  user          Attendance_user @relation(fields: [username, school_id], references: [username, school_id])
-  studentFees   StudentFees[]
-  busFeePayment BusFeePayment[]
-  rteFeePayment RteFeePayment[]
-
-  @@unique([username, school_id]) // ✅ username unique within school
-  @@unique([mobile, school_id]) // ✅ mobile unique within school
-  @@index([school_id])
+  @@unique([school_id, class_id, exam_title], map: "ExamTimeTable_school_id_class_id_exam_title_key")
+  @@index([class_id], map: "ExamTimeTable_class_id_fkey")
 }
 
-model StaffAttendance {
-  username   String
-  school_id  Int
-  date       DateTime
-  fn_status  String   @default("null")
-  an_status  String   @default("null")
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  school School @relation(fields: [school_id], references: [id])
-  staff  Staff  @relation(fields: [username, school_id], references: [username, school_id])
-
-  @@unique([username, school_id, date], name: "username_school_date_staff")
-  @@index([school_id])
-}
-
-model StudentAttendance {
-  username   String
-  school_id  Int
-  class_id   Int
-  date       DateTime
-  fn_status  String   @default("null")
-  an_status  String   @default("null")
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  class   Classes @relation(fields: [class_id], references: [id])
-  student Student @relation(fields: [username, school_id], references: [username, school_id])
-  school  School  @relation(fields: [school_id], references: [id])
-
-  @@unique([username, school_id, date], name: "username_school_date") // ✅ unique per student per day per school
-  @@index([school_id])
-  @@index([class_id])
-}
-
-model ClassTimetable {
-  id           Int       @id @default(autoincrement())
-  schoolId     Int?
-  classesId    Int?
-  dayOfWeek    DayOfWeek
-  periodNumber Int
-  subject      String
-  updated_at   DateTime  @default(now()) @updatedAt
-  is_deleted   Boolean   @default(false)
-  sync_status  String    @default("synced")
-
-  School  School?  @relation(fields: [schoolId], references: [id])
-  Classes Classes? @relation(fields: [classesId], references: [id])
-
-  @@unique([schoolId, classesId, dayOfWeek, periodNumber], name: "schoolId_classesId_dayOfWeek_periodNumber")
-  @@index([schoolId])
-  @@index([classesId])
-}
-
-model Feedback {
-  id         Int      @id @default(autoincrement())
-  username   String
-  name       String
-  email      String
-  feedback   String
-  school_id  Int
-  class_id   Int
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
-
-  school School  @relation(fields: [school_id], references: [id])
-  class  Classes @relation(fields: [class_id], references: [id])
-}
-
-//add parthi
-model Tickets {
+model feedback {
   id          Int      @id @default(autoincrement())
   username    String
   name        String
   email       String
-  tickets     String
+  feedback    String
   school_id   Int
-  status      String   @default("Pending")
+  class_id    Int
   created_at  DateTime @default(now())
-  modified_at DateTime @default(now())
-  updated_at  DateTime @default(now()) @updatedAt
+  updated_at  DateTime @default(now())
   is_deleted  Boolean  @default(false)
   sync_status String   @default("synced")
+  classes     classes  @relation(fields: [class_id], references: [id], map: "Feedback_class_id_fkey")
+  school      school   @relation(fields: [school_id], references: [id], map: "Feedback_school_id_fkey")
 
-  school School @relation(fields: [school_id], references: [id])
+  @@index([class_id], map: "Feedback_class_id_fkey")
+  @@index([school_id], map: "Feedback_school_id_fkey")
 }
 
-model Messages {
-  id        Int     @id @default(autoincrement())
-  messages  String  @db.VarChar(200)
-  date      String? @db.VarChar(45)
-  school_id Int
-  role      String  @default("null")
+model feepayments {
+  id             Int         @id @default(autoincrement())
+  student_fee_id Int
+  amount         Float
+  payment_date   DateTime    @default(now())
+  method         String?
+  transaction_id String?
+  status         String      @default("pending")
+  updated_at     DateTime    @default(now())
+  is_deleted     Boolean     @default(false)
+  sync_status    String      @default("synced")
+  studentfees    studentfees @relation(fields: [student_fee_id], references: [aId], map: "FeePayments_student_fee_id_fkey")
 
-  school School @relation(fields: [school_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sync_status String @default("synced")
-
-  @@index([school_id])
+  @@index([student_fee_id], map: "FeePayments_student_fee_id_fkey")
 }
 
-model LeaveRequest {
-  id         Int      @id @default(autoincrement())
-  username   String // The user requesting leave
-  role       Role     @default(student) // Role of requester (optional, helpful for logic)
-  school_id  Int
-  class_id   Int
-  from_date  DateTime // Leave start date
-  to_date    DateTime // Leave end date
-  reason     String? // Optional leave reason
-  status     String   @default("pending") // "pending", "approved", "rejected"
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-  is_deleted Boolean  @default(false)
-  sync_status String   @default("synced")
+model feestructure {
+  id           Int           @id @default(autoincrement())
+  school_id    Int
+  class_id     Int
+  title        String?
+  descriptions Json?
+  amounts      Json?
+  total_amount Float?
+  start_date   DateTime?     @default(now())
+  end_date     DateTime?
+  created_by   String
+  created_at   DateTime      @default(now())
+  updated_by   String
+  updated_at   DateTime
+  status       String        @default("inactive")
+  is_deleted   Boolean       @default(false)
+  sync_status  String        @default("synced")
+  classes      classes       @relation(fields: [class_id], references: [id], map: "FeeStructure_class_id_fkey")
+  school       school        @relation(fields: [school_id], references: [id], map: "FeeStructure_school_id_fkey")
+  studentfees  studentfees[]
 
-  @@index([username])
-  @@index([school_id, class_id])
+  @@unique([school_id, class_id, title], map: "FeeStructure_school_id_class_id_title_key")
+  @@index([class_id], map: "FeeStructure_class_id_fkey")
 }
 
-model Homework {
+model finance {
+  id          Int          @id @default(autoincrement())
+  school_id   Int
+  amount      Float
+  reason      String?
+  type        finance_type
+  created_by  String
+  created_at  DateTime     @default(now())
+  updated_by  String
+  updated_at  DateTime
+  is_deleted  Boolean      @default(false)
+  sync_status String       @default("synced")
+  school      school       @relation(fields: [school_id], references: [id], map: "Finance_school_id_fkey")
+
+  @@index([school_id], map: "Finance_school_id_fkey")
+}
+
+model holidays {
+  id          Int       @id @default(autoincrement())
+  date        DateTime
+  reason      String
+  school_id   Int?
+  class_ids   Json
+  fn          String?   @db.Char(1)
+  an          String    @db.Char(1)
+  updated_at  DateTime  @default(now())
+  is_deleted  Boolean   @default(false)
+  sync_status String    @default("synced")
+  school      school?   @relation(fields: [school_id], references: [id], map: "Holidays_school_id_fkey")
+  classes     classes[] @relation("holidayclasses")
+
+  @@index([school_id], map: "Holidays_school_id_idx")
+}
+
+model homework {
   id            Int      @id @default(autoincrement())
   school_id     Int
   class_id      Int
@@ -684,23 +337,375 @@ model Homework {
   due_date      DateTime
   assigned_by   String
   attachments   Json?
-  updated_at    DateTime @default(now()) @updatedAt
+  updated_at    DateTime @default(now())
   is_deleted    Boolean  @default(false)
   sync_status   String   @default("synced")
 
-  @@index([school_id, class_id])
+  @@index([school_id, class_id], map: "Homework_school_id_class_id_idx")
 }
 
-enum Role {
+model imageandvideos {
+  id          Int                 @id @default(autoincrement())
+  school_id   Int
+  link        String
+  type        imageandvideos_type
+  title       String?
+  description String?
+  date        DateTime?
+  updated_at  DateTime            @default(now())
+  is_deleted  Boolean             @default(false)
+  sync_status String              @default("synced")
+  school      school              @relation(fields: [school_id], references: [id], map: "ImageAndVideos_school_id_fkey")
+
+  @@index([school_id], map: "ImageAndVideos_school_id_fkey")
+}
+
+model leaverequest {
+  id          Int               @id @default(autoincrement())
+  username    String
+  role        leaverequest_role @default(student)
+  school_id   Int
+  class_id    Int
+  from_date   DateTime
+  to_date     DateTime
+  reason      String?
+  status      String            @default("pending")
+  created_at  DateTime          @default(now())
+  updated_at  DateTime          @default(now())
+  is_deleted  Boolean           @default(false)
+  sync_status String            @default("synced")
+
+  @@index([school_id, class_id], map: "LeaveRequest_school_id_class_id_idx")
+  @@index([username], map: "LeaveRequest_username_idx")
+}
+
+model messages {
+  id          Int     @id @default(autoincrement())
+  messages    String  @db.VarChar(200)
+  date        String? @db.VarChar(45)
+  school_id   Int
+  role        String  @default("null")
+  sync_status String  @default("synced")
+  school      school  @relation(fields: [school_id], references: [id], onDelete: Cascade, map: "Messages_school_id_fkey")
+
+  @@index([school_id], map: "Messages_school_id_idx")
+}
+
+model realtimemessage {
+  id              Int             @id @default(autoincrement())
+  text            String
+  role            String
+  school_id       Int
+  classId         Int?
+  createdAt       DateTime        @default(now())
+  senderId        Int
+  senderName      String
+  sync_status     String          @default("synced")
+  school          school          @relation(fields: [school_id], references: [id], map: "RealTimeMessage_school_id_fkey")
+  attendance_user attendance_user @relation(fields: [senderId], references: [id], map: "RealTimeMessage_senderId_fkey")
+
+  @@index([school_id], map: "RealTimeMessage_school_id_idx")
+  @@index([senderId], map: "RealTimeMessage_senderId_idx")
+}
+
+model rtefeepayment {
+  id                   Int                  @id @default(autoincrement())
+  school_id            Int
+  class_id             Int
+  student_id           String
+  rte_fee_structure_id Int
+  payment_date         DateTime             @default(now())
+  amount_paid          Float
+  payment_mode         String
+  reference_number     String?
+  status               rtefeepayment_status
+  created_by           String
+  created_at           DateTime             @default(now())
+  updated_at           DateTime             @default(now())
+  is_deleted           Boolean              @default(false)
+  sync_status          String               @default("synced")
+  classes              classes              @relation(fields: [class_id], references: [id], map: "RteFeePayment_class_id_fkey")
+  admin                admin                @relation(fields: [created_by, school_id], references: [username, school_id], map: "RteFeePayment_created_by_school_id_fkey")
+  rtestructure         rtestructure         @relation(fields: [rte_fee_structure_id], references: [id], map: "RteFeePayment_rte_fee_structure_id_fkey")
+  school               school               @relation(fields: [school_id], references: [id], map: "RteFeePayment_school_id_fkey")
+  student              student              @relation(fields: [student_id, school_id], references: [username, school_id], map: "RteFeePayment_student_id_school_id_fkey")
+
+  @@index([class_id], map: "RteFeePayment_class_id_fkey")
+  @@index([created_by, school_id], map: "RteFeePayment_created_by_school_id_fkey")
+  @@index([rte_fee_structure_id], map: "RteFeePayment_rte_fee_structure_id_fkey")
+  @@index([school_id], map: "RteFeePayment_school_id_fkey")
+  @@index([student_id, school_id], map: "RteFeePayment_student_id_school_id_fkey")
+}
+
+model rtestructure {
+  id            Int             @id @default(autoincrement())
+  school_id     Int
+  class_id      Int
+  descriptions  Json?
+  amounts       Json?
+  total_amount  Float?
+  created_by    String
+  created_at    DateTime        @default(now())
+  updated_by    String
+  updated_at    DateTime
+  status        String          @default("inactive")
+  is_deleted    Boolean         @default(false)
+  sync_status   String          @default("synced")
+  rtefeepayment rtefeepayment[]
+  classes       classes         @relation(fields: [class_id], references: [id], map: "RteStructure_class_id_fkey")
+  school        school          @relation(fields: [school_id], references: [id], map: "RteStructure_school_id_fkey")
+
+  @@index([class_id], map: "RteStructure_class_id_fkey")
+  @@index([school_id], map: "RteStructure_school_id_fkey")
+}
+
+model school {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique(map: "School_name_key")
+  address           String
+  photo             Bytes?
+  createdAt         DateTime?           @default(now())
+  dueDate           DateTime?
+  student_access    Json
+  updated_at        DateTime            @default(now())
+  is_deleted        Boolean             @default(false)
+  sync_status       String              @default("synced")
+  admin             admin[]
+  apppayment        apppayment[]
+  attendance_user   attendance_user[]
+  blockedschool     blockedschool?
+  busfeepayment     busfeepayment[]
+  busfeestructure   busfeestructure[]
+  classes           classes[]
+  classtimetable    classtimetable[]
+  exammarks         exammarks[]
+  examtimetable     examtimetable[]
+  feedback          feedback[]
+  feestructure      feestructure[]
+  finance           finance[]
+  holidays          holidays[]
+  imageandvideos    imageandvideos[]
+  messages          messages[]
+  realtimemessage   realtimemessage[]
+  rtefeepayment     rtefeepayment[]
+  rtestructure      rtestructure[]
+  staff             staff[]
+  staffattendance   staffattendance[]
+  student           student[]
+  studentattendance studentattendance[]
+  studentfees       studentfees[]
+  tickets           tickets[]
+}
+
+model staff {
+  id              Int               @id @default(autoincrement())
+  username        String
+  designation     String
+  name            String?
+  email           String            @default("null")
+  gender          staff_gender?
+  mobile          String
+  school_id       Int
+  class_ids       Json
+  photo           Bytes?
+  faculty         String            @default("null")
+  class_teacher   Json
+  access          Json
+  updated_at      DateTime          @default(now())
+  is_deleted      Boolean           @default(false)
+  sync_status     String            @default("synced")
+  school          school            @relation(fields: [school_id], references: [id], map: "Staff_school_id_fkey")
+  attendance_user attendance_user   @relation(fields: [username, school_id], references: [username, school_id], map: "Staff_username_school_id_fkey")
+  staffattendance staffattendance[]
+  classes         classes[]         @relation("class_ids")
+  classes_teacher classes[]         @relation("class_teacher")
+
+  @@unique([mobile, school_id], map: "Staff_mobile_school_id_key")
+  @@unique([username, school_id], map: "Staff_username_school_id_key")
+  @@index([school_id], map: "Staff_school_id_idx")
+}
+
+model staffattendance {
+  username    String
+  school_id   Int
+  date        DateTime
+  fn_status   String   @default("null")
+  an_status   String   @default("null")
+  updated_at  DateTime @default(now())
+  is_deleted  Boolean  @default(false)
+  sync_status String   @default("synced")
+  school      school   @relation(fields: [school_id], references: [id], map: "StaffAttendance_school_id_fkey")
+  staff       staff    @relation(fields: [username, school_id], references: [username, school_id], map: "StaffAttendance_username_school_id_fkey")
+
+  @@unique([username, school_id, date], map: "StaffAttendance_username_school_id_date_key")
+  @@index([school_id], map: "StaffAttendance_school_id_idx")
+}
+
+model student {
+  id                Int                 @id @default(autoincrement())
+  username          String
+  name              String?
+  gender            student_gender?
+  email             String
+  mobile            String
+  class_id          Int
+  school_id         Int
+  updated_at        DateTime            @default(now())
+  is_deleted        Boolean             @default(false)
+  photo             Bytes?
+  father_name       String              @default("null")
+  community         String              @default("null")
+  DOB               DateTime?           @default(now())
+  route             String              @default("null")
+  address           String              @default("null")
+  date_of_join      DateTime?           @default(now())
+  isRTE             Boolean             @default(false)
+  is_left           Boolean             @default(true)
+  left_detail       Json
+  sync_status       String              @default("synced")
+  busfeepayment     busfeepayment[]
+  rtefeepayment     rtefeepayment[]
+  classes           classes             @relation(fields: [class_id], references: [id], map: "Student_class_id_fkey")
+  school            school              @relation(fields: [school_id], references: [id], map: "Student_school_id_fkey")
+  attendance_user   attendance_user     @relation(fields: [username, school_id], references: [username, school_id], map: "Student_username_school_id_fkey")
+  studentattendance studentattendance[]
+  studentfees       studentfees[]
+
+  @@unique([username, school_id], map: "Student_username_school_id_key")
+  @@index([class_id], map: "Student_class_id_idx")
+  @@index([school_id], map: "Student_school_id_idx")
+}
+
+model studentattendance {
+  username    String
+  school_id   Int
+  class_id    Int
+  date        DateTime
+  fn_status   String   @default("null")
+  an_status   String   @default("null")
+  updated_at  DateTime @default(now())
+  is_deleted  Boolean  @default(false)
+  sync_status String   @default("synced")
+  classes     classes  @relation(fields: [class_id], references: [id], map: "StudentAttendance_class_id_fkey")
+  school      school   @relation(fields: [school_id], references: [id], map: "StudentAttendance_school_id_fkey")
+  student     student  @relation(fields: [username, school_id], references: [username, school_id], map: "StudentAttendance_username_school_id_fkey")
+
+  @@unique([username, school_id, date], map: "StudentAttendance_username_school_id_date_key")
+  @@index([class_id], map: "StudentAttendance_class_id_idx")
+  @@index([school_id], map: "StudentAttendance_school_id_idx")
+}
+
+model studentfees {
+  aId          Int                @id @default(autoincrement())
+  id           Int
+  school_id    Int
+  class_id     Int
+  username     String
+  total_amount Float
+  paid_amount  Float
+  status       studentfees_status @default(PENDING)
+  createdBy    String
+  createdAt    DateTime?
+  remarks      String?
+  updated_at   DateTime           @default(now())
+  is_deleted   Boolean            @default(false)
+  sync_status  String             @default("synced")
+  feepayments  feepayments[]
+  classes      classes            @relation(fields: [class_id], references: [id], map: "StudentFees_class_id_fkey")
+  admin        admin              @relation(fields: [createdBy, school_id], references: [username, school_id], map: "StudentFees_createdBy_school_id_fkey")
+  feestructure feestructure       @relation(fields: [id], references: [id], map: "StudentFees_id_fkey")
+  school       school             @relation(fields: [school_id], references: [id], map: "StudentFees_school_id_fkey")
+  student      student            @relation(fields: [username, school_id], references: [username, school_id], map: "StudentFees_username_school_id_fkey")
+
+  @@index([class_id], map: "StudentFees_class_id_fkey")
+  @@index([createdBy, school_id], map: "StudentFees_createdBy_school_id_fkey")
+  @@index([id], map: "StudentFees_id_fkey")
+  @@index([school_id], map: "StudentFees_school_id_fkey")
+  @@index([username, school_id], map: "StudentFees_username_school_id_fkey")
+}
+
+model tickets {
+  id          Int      @id @default(autoincrement())
+  username    String
+  name        String
+  email       String
+  tickets     String
+  school_id   Int
+  status      String   @default("Pending")
+  created_at  DateTime @default(now())
+  modified_at DateTime @default(now())
+  updated_at  DateTime @default(now())
+  is_deleted  Boolean  @default(false)
+  sync_status String   @default("synced")
+  school      school   @relation(fields: [school_id], references: [id], map: "Tickets_school_id_fkey")
+
+  @@index([school_id], map: "Tickets_school_id_fkey")
+}
+
+enum leaverequest_role {
   admin
   staff
   student
 }
 
-model AccadamicYear {
-  id            Int      @id @default(autoincrement())
-  school_id     Int
-  start_year      Int
-  end_year      Int
+enum apppayment_paymentPlan {
+  MONTHLY
+  YEARLY
+}
 
+enum classtimetable_dayOfWeek {
+  Mon
+  Tue
+  Wed
+  Thu
+  Fri
+  Sat
+}
+
+enum imageandvideos_type {
+  IMAGE
+  VIDEO
+}
+
+enum student_gender {
+  M
+  F
+  O
+}
+
+enum finance_type {
+  INCOME
+  EXPENSE
+  DRAWING_IN
+  DRAWING_OUT
+}
+
+enum staff_gender {
+  M
+  F
+  O
+}
+
+enum studentfees_status {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+enum apppayment_status {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum busfeepayment_status {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+enum rtefeepayment_status {
+  PENDING
+  PARTIALLY_PAID
+  PAID
 }

@@ -42,7 +42,12 @@ export class LoginSyncService implements OnModuleInit {
   }
 
   // Trigger sync after successful login
-  async triggerLoginSync(schoolId: number, userId?: string, request?: any): Promise<{ success: boolean; message: string; synced?: any }> {
+  async triggerLoginSync(schoolIdInput: number | string, userId?: string, request?: any): Promise<{ success: boolean; message: string; synced?: any }> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for login sync: ${schoolIdInput}`);
+      return { success: false, message: 'Invalid schoolId' };
+    }
     if (!this.dbConfig.isHybridMode()) {
       this.logger.log('Not in hybrid mode, skipping login sync');
       return { success: false, message: 'Not in hybrid mode' };
@@ -128,7 +133,12 @@ export class LoginSyncService implements OnModuleInit {
   }
 
   // Handle user logout - stop periodic sync for that school
-  async handleUserLogout(schoolId: number, userId?: string): Promise<{ success: boolean; message: string }> {
+  async handleUserLogout(schoolIdInput: number | string, userId?: string): Promise<{ success: boolean; message: string }> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for logout: ${schoolIdInput}`);
+      return { success: false, message: 'Invalid schoolId' };
+    }
     this.logger.log(`🔓 DEBUG: handleUserLogout called with schoolId=${schoolId}, userId=${userId}`);
 
     // Stop periodic sync for this school FIRST
@@ -200,7 +210,12 @@ export class LoginSyncService implements OnModuleInit {
   }
 
   // Start periodic sync for specific school
-  public startPeriodicSyncForSchool(schoolId: number, request?: any): void {
+  public startPeriodicSyncForSchool(schoolIdInput: number | string, request?: any): void {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for periodic sync: ${schoolIdInput}`);
+      return;
+    }
     // Check if request is from mobile platform - if so, don't start sync
     if (request && this.isMobilePlatform(request)) {
       this.logger.log(`� Mobile platform detected - NOT starting periodic sync for school ${schoolId}`);
@@ -287,7 +302,12 @@ export class LoginSyncService implements OnModuleInit {
   private lastSyncTimestamps = new Map<number, Date>();
 
   // Perform incremental sync for tables with updated_at field
-  private async performIncrementalSync(schoolId: number, lastSyncTime: Date): Promise<{ hasChanges: boolean; totalChanges: number }> {
+  private async performIncrementalSync(schoolIdInput: number | string, lastSyncTime: Date): Promise<{ hasChanges: boolean; totalChanges: number }> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for incremental sync: ${schoolIdInput}`);
+      return { hasChanges: false, totalChanges: 0 };
+    }
     try {
       this.logger.log(`🔍 DEBUG: performIncrementalSync called for school ${schoolId}`);
       const cloudClient = this.dbConfig.getCloudClient();

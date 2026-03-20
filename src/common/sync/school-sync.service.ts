@@ -8,7 +8,12 @@ export class SchoolSyncService {
   constructor(private readonly dbConfig: DatabaseConfigService) {}
 
   // Sync school data from cloud to local database
-  async syncSchoolDataToLocal(schoolId: number): Promise<boolean> {
+  async syncSchoolDataToLocal(schoolIdInput: number | string): Promise<boolean> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for school sync: ${schoolIdInput}`);
+      return false;
+    }
     try {
       const cloudClient = this.dbConfig.getCloudClient();
       const localClient = this.dbConfig.getLocalClient();
@@ -63,7 +68,9 @@ export class SchoolSyncService {
   }
 
   // Check if school data exists locally
-  async isSchoolDataAvailable(schoolId: number): Promise<boolean> {
+  async isSchoolDataAvailable(schoolIdInput: number | string): Promise<boolean> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) return false;
     try {
       const localClient = this.dbConfig.getLocalClient();
       if (!localClient) return false;
@@ -79,7 +86,12 @@ export class SchoolSyncService {
   }
 
   // Quick sync for essential data only
-  async quickSyncSchool(schoolId: number): Promise<boolean> {
+  async quickSyncSchool(schoolIdInput: number | string): Promise<boolean> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for quick sync: ${schoolIdInput}`);
+      return false;
+    }
     this.logger.log(`Starting quick sync for school ${schoolId}`);
     
     try {

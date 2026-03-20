@@ -9,7 +9,12 @@ export class CloudToLocalSyncService {
   constructor(private readonly dbConfig: DatabaseConfigService) {}
 
   // Sync all new messages from cloud to local database
-  async syncMessagesFromCloud(schoolId: number, lastSyncTime?: Date): Promise<{ synced: number; failed: number }> {
+  async syncMessagesFromCloud(schoolIdInput: number | string, lastSyncTime?: Date): Promise<{ synced: number; failed: number }> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for message sync: ${schoolIdInput}`);
+      return { synced: 0, failed: 0 };
+    }
     if (!this.dbConfig.isHybridMode()) {
       this.logger.warn('Not in hybrid mode, skipping cloud-to-local sync');
       return { synced: 0, failed: 0 };
@@ -92,7 +97,9 @@ export class CloudToLocalSyncService {
   }
 
   // Get last sync time for a table
-  async getLastSyncTime(tableName: string, schoolId: number): Promise<Date | null> {
+  async getLastSyncTime(tableName: string, schoolIdInput: number | string): Promise<Date | null> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) return null;
     try {
       const localClient = this.dbConfig.getLocalClient();
       if (!localClient) return null;
@@ -121,7 +128,12 @@ export class CloudToLocalSyncService {
   }
 
   // Full sync for all new data from cloud to local
-  async performFullCloudToLocalSync(schoolId: number): Promise<{ messages: number; total: number }> {
+  async performFullCloudToLocalSync(schoolIdInput: number | string): Promise<{ messages: number; total: number }> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for full sync: ${schoolIdInput}`);
+      return { messages: 0, total: 0 };
+    }
     this.logger.log(`Starting full cloud-to-local sync for school ${schoolId}`);
 
     try {

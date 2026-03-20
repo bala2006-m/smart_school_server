@@ -43,10 +43,9 @@ export class StudentAttendanceSyncService {
       items.map((item) =>
         (client as any).studentAttendance.upsert({
           where: {
-            username_school_date
-              : {
+            username_school_date: {
               username: item.username,
-              school_id: item.school_id,
+              school_id: Number(item.school_id),
               date: new Date(item.date),
             },
           },
@@ -60,8 +59,8 @@ export class StudentAttendanceSyncService {
 
           create: {
             username: item.username,
-            school_id: item.school_id,
-            class_id: item.class_id,
+            school_id: Number(item.school_id),
+            class_id: Number(item.class_id),
             date: new Date(item.date),
             fn_status: item.fn_status,
             an_status: item.an_status,

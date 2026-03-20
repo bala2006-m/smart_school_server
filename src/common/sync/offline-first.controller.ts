@@ -144,7 +144,8 @@ export class OfflineFirstController {
   @Post('sync-from-cloud')
   async syncFromCloud(@Body() body: { schoolId: number }) {
     try {
-      const result = await this.cloudToLocalSyncService.performFullCloudToLocalSync(body.schoolId);
+      const schoolId = Number(body.schoolId);
+      const result = await this.cloudToLocalSyncService.performFullCloudToLocalSync(schoolId);
 
       this.websocketGateway.broadcastSyncStatus();
 
@@ -164,7 +165,8 @@ export class OfflineFirstController {
   @Post('initial-sync')
   async performInitialSync(@Body() body: { schoolId: number }) {
     try {
-      const result = await this.simpleInitialSyncService.performSimpleInitialSync(body.schoolId);
+      const schoolId = Number(body.schoolId);
+      const result = await this.simpleInitialSyncService.performSimpleInitialSync(schoolId);
 
       if (result.success) {
         return {
@@ -189,7 +191,8 @@ export class OfflineFirstController {
   @Post('start-periodic-sync')
   async startPeriodicSync(@Body() body: { schoolId: number }) {
     try {
-      this.loginSyncService.startPeriodicSyncForSchool(body.schoolId);
+      const schoolId = Number(body.schoolId);
+      this.loginSyncService.startPeriodicSyncForSchool(schoolId);
 
       return {
         status: 'success',
@@ -206,7 +209,8 @@ export class OfflineFirstController {
   @Post('trigger-startup-sync')
   async triggerStartupSync(@Body() body: { schoolId: number }) {
     try {
-      await this.startupSyncService.triggerManualSync(body.schoolId);
+      const schoolId = Number(body.schoolId);
+      await this.startupSyncService.triggerManualSync(schoolId);
 
       return {
         status: 'success',
@@ -224,7 +228,8 @@ export class OfflineFirstController {
   @Post('login-sync')
   async triggerLoginSync(@Body() body: { schoolId: number; userId?: string }) {
     try {
-      const result = await this.loginSyncService.triggerLoginSync(body.schoolId, body.userId);
+      const schoolId = Number(body.schoolId);
+      const result = await this.loginSyncService.triggerLoginSync(schoolId, body.userId);
 
       return {
         status: result.success ? 'success' : 'error',
@@ -242,7 +247,8 @@ export class OfflineFirstController {
   @Post('force-login-sync')
   async forceLoginSync(@Body() body: { schoolId: number }) {
     try {
-      const result = await this.loginSyncService.forceTriggerSync(body.schoolId);
+      const schoolId = Number(body.schoolId);
+      const result = await this.loginSyncService.forceTriggerSync(schoolId);
 
       return {
         status: result.success ? 'success' : 'error',
@@ -257,8 +263,8 @@ export class OfflineFirstController {
   }
 
   @Get('login-sync-status/:schoolId')
-  getLoginSyncStatus(@Param('schoolId') schoolId: number) {
-    const status = this.loginSyncService.getSyncStatus(schoolId);
+  getLoginSyncStatus(@Param('schoolId') schoolId: any) {
+    const status = this.loginSyncService.getSyncStatus(Number(schoolId));
 
     return {
       status: 'success',
@@ -297,8 +303,8 @@ export class OfflineFirstController {
   @Post('manual-sync')
   async quickManualSync(@Body() body: { schoolId: number; userId?: string }) {
     try {
-      const schoolId = body.schoolId || 1; // Default to school 1 if not provided
-
+      const schoolId = Number(body.schoolId || 1); // Default to school 1 if not provided
+      
       // Perform initial sync to get latest data from cloud
       const initialResult = await this.simpleInitialSyncService.performSimpleInitialSync(schoolId);
 

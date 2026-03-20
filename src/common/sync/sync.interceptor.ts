@@ -109,15 +109,35 @@ export class SyncInterceptor implements NestInterceptor {
       case 'create':
       case 'update':
         // For create/update, use the response data or request body
-        return response.data || response || request.body;
-      
+        let data = response.data || response || request.body;
+
+        // CRITICAL: Check if data is just a success response and not a record
+        if (data && (data.status === 'success' || data.message)) {
+          // If it's a success message, fall back to request body if available
+          if (request.body && Object.keys(request.body).length > 0) {
+            data = request.body;
+          } else {
+            return null;
+          }
+        }
+
+        // Ensure we have at least some fields that look like a record
+        if (!data || Object.keys(data).length === 0) {
+          return null;
+        }
+
+        return data;
+
       case 'delete':
         // For delete, use the request parameters or body
+        if (!request.params.id && !request.body.id) {
+          return null;
+        }
         return {
           id: request.params.id || request.body.id,
           ...request.body,
         };
-      
+
       default:
         return null;
     }

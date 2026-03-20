@@ -143,6 +143,22 @@ export class OfflineFirstInterceptor implements NestInterceptor {
         // For create/update, use response data or request body
         let data = response.data || response || request.body;
 
+        // CRITICAL: Check if data is just a success response and not a record
+        if (data && (data.status === 'success' || data.message)) {
+          // If it's a success message, fall back to request body if available
+          // OR skip sync if the request body is also empty/invalid
+          if (request.body && Object.keys(request.body).length > 0) {
+            data = request.body;
+          } else {
+            return null;
+          }
+        }
+
+        // Ensure we have at least some fields that look like a record
+        if (!data || Object.keys(data).length === 0) {
+          return null;
+        }
+
         // Special handling for Messages table - map 'message' to 'messages'
         if (data && data.message && !data.messages) {
           data = {
@@ -156,6 +172,9 @@ export class OfflineFirstInterceptor implements NestInterceptor {
 
       case 'delete':
         // For delete, use request parameters or body
+        if (!request.params.id && !request.body.id) {
+          return null;
+        }
         return {
           id: request.params.id || request.body.id,
           ...request.body,

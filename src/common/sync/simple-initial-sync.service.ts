@@ -8,7 +8,8 @@ export class SimpleInitialSyncService {
 
   constructor(private readonly dbConfig: DatabaseConfigService) { }
 
-  private async shouldSkipSync(tableName: string, schoolId: number, cloudClient: any, localClient: any): Promise<boolean> {
+  private async shouldSkipSync(tableName: string, schoolIdInput: number | string, cloudClient: any, localClient: any): Promise<boolean> {
+    const schoolId = Number(schoolIdInput);
     try {
       let cloudCount, localCount;
 
@@ -191,7 +192,13 @@ export class SimpleInitialSyncService {
     }
   }
 
-  async performSimpleInitialSync(schoolId: number): Promise<{ success: boolean; synced: any }> {
+  async performSimpleInitialSync(schoolIdInput: number | string): Promise<{ success: boolean; synced: any }> {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for sync: ${schoolIdInput}`);
+      return { success: false, synced: null };
+    }
+
     if (!this.dbConfig.isHybridMode()) {
       this.logger.warn('Not in hybrid mode, skipping initial sync');
       return { success: false, synced: null };

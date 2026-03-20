@@ -24,7 +24,12 @@ export class StartupSyncService implements OnModuleInit {
     this.logger.log('⏸️ Waiting for frontend login to trigger initial and periodic sync...');
   }
 
-  private async performStartupSync(schoolId: number) {
+  private async performStartupSync(schoolIdInput: number | string) {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for startup sync: ${schoolIdInput}`);
+      return { success: false, error: 'Invalid schoolId' };
+    }
     try {
       this.logger.log(`🔄 Starting SIMPLE initial sync for school ${schoolId}...`);
 
@@ -45,7 +50,12 @@ export class StartupSyncService implements OnModuleInit {
   }
 
   // Manual trigger for frontend - this is now the primary way to trigger sync
-  async triggerManualSync(schoolId: number) {
+  async triggerManualSync(schoolIdInput: number | string) {
+    const schoolId = Number(schoolIdInput);
+    if (isNaN(schoolId)) {
+      this.logger.error(`Invalid schoolId provided for manual sync: ${schoolIdInput}`);
+      return { success: false, error: 'Invalid schoolId' };
+    }
     this.logger.log(`🔄 Frontend triggered sync for school ${schoolId}`);
     return await this.performStartupSync(schoolId);
   }
