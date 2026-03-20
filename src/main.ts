@@ -6,7 +6,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
  
   app.enableCors({
-    origin: '*',
+    origin: [
+      'https://smartschool.ramchintech.com',
+      'http://localhost:3000',
+      'https://smartschoolserver.ramchintech.com'
+    ],
+    credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, x-platform, x-sync-source',
     optionsSuccessStatus: 204,
