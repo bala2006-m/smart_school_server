@@ -19,8 +19,7 @@ const options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Content-Length': data.length,
-    'x-sync-source': 'local' // Simulation of desktop user
+    'Content-Length': data.length
   }
 };
 

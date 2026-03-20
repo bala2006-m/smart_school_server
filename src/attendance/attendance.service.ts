@@ -121,7 +121,11 @@ export class AttendanceService {
 
       return { status: 'success', message: 'Student attendance recorded' };
     } catch (error) {
-      console.error('Error in markStudentAttendance:', error);
+      console.error('CRITICAL ERROR in markStudentAttendance:', error);
+      // If it's already an HttpException (like BadRequestException), just re-throw it
+      if (error.status && error.response) {
+        throw error;
+      }
       throw new InternalServerErrorException(
         error.message || 'Failed to record student attendance',
       );
@@ -336,6 +340,9 @@ export class AttendanceService {
       return { status: 'success', message: 'Staff attendance recorded' };
     } catch (e) {
       console.error('Error in markStaffAttendance:', e);
+      if (e.status && e.response) {
+        throw e;
+      }
       throw new InternalServerErrorException(
         e.message || 'Failed to record staff attendance',
       );

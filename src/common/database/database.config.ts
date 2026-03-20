@@ -98,13 +98,31 @@ export class DatabaseConfigService implements OnModuleDestroy {
   }
 
   private detectPlatform(): 'mobile' | 'desktop' | 'web' | 'unknown' {
-    const isDesktop = process.platform === 'win32' || process.platform === 'darwin' || process.platform === 'linux';
+    // Explicitly check for VPS/Production mode via environment variable
+    if (process.env.DATABASE_MODE === 'cloud') {
+      return 'web'; // Treat VPS as web platform (no local DB)
+    }
+
+    const isDesktop = process.platform === 'win32' || process.platform === 'darwin';
+    // On Linux, we only treat as desktop if it's NOT explicitly marked as cloud mode
+    // Most VPS are Linux, but some devs use Linux desktop.
+    if (process.platform === 'linux' && process.env.DATABASE_MODE !== 'local') {
+      return 'web'; // Default Linux to web/server mode unless specified
+    }
+
     if (isDesktop) return 'desktop';
     return 'unknown';
   }
 
   private checkLocalDatabaseAvailability(): boolean {
-    const isDesktop = process.platform === 'win32' || process.platform === 'darwin' || process.platform === 'linux';
+    // If explicitly set to cloud mode, local is NOT available
+    if (process.env.DATABASE_MODE === 'cloud') return false;
+    
+    // If explicitly set to local mode, allow it
+    if (process.env.DATABASE_MODE === 'local') return true;
+
+    const isDesktop = process.platform === 'win32' || process.platform === 'darwin';
+    // Default Linux to false (server) unless DATABASE_MODE=local is set
     return isDesktop;
   }
 
