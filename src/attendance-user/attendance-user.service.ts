@@ -11,6 +11,10 @@ export class AttendanceUserService {
     private readonly dbConfig: DatabaseConfigService,
     @Inject(REQUEST) private readonly request: any,
   ) { }
+
+  private getAttendanceUserModel(client: any) {
+    return client.attendance_user ?? client.attendanceUser;
+  }
   async deleteUser(
     username: string,
     role: string,
@@ -51,32 +55,48 @@ export class AttendanceUserService {
   }
   async getUsersByRole(role: string, school_id: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
-    return (client as any).attendance_user.findMany({
-      where: {
-        role: role.toLowerCase(),
-        school_id: Number(school_id)
-      },
-      select: {
-        id: true,
-        username: true,
-        school_id: true,
-        password: true,
-      },
-      orderBy: { username: 'asc' },
-    });
+    const model = this.getAttendanceUserModel(client as any);
+    if (!model || typeof model.findMany !== 'function') {
+      return [];
+    }
+    try {
+      return await model.findMany({
+        where: {
+          role: role.toLowerCase(),
+          school_id: Number(school_id),
+        },
+        select: {
+          id: true,
+          username: true,
+          school_id: true,
+          password: true,
+        },
+        orderBy: { username: 'asc' },
+      });
+    } catch (error) {
+      return [];
+    }
   }
   async getUsers(role: string) {
     const client = this.dbConfig.getDatabaseClient(this.request);
-    return (client as any).attendance_user.findMany({
-      where: {
-        role: role.toLowerCase(),
-      },
-      select: {
-        id: true,
-        username: true,
-        school_id: true,
-      },
-      orderBy: { username: 'asc' },
-    });
+    const model = this.getAttendanceUserModel(client as any);
+    if (!model || typeof model.findMany !== 'function') {
+      return [];
+    }
+    try {
+      return await model.findMany({
+        where: {
+          role: role.toLowerCase(),
+        },
+        select: {
+          id: true,
+          username: true,
+          school_id: true,
+        },
+        orderBy: { username: 'asc' },
+      });
+    } catch (error) {
+      return [];
+    }
   }
 }

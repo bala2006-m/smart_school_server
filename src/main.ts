@@ -11,7 +11,8 @@ async function bootstrap() {
     origin: true,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Authorization, x-platform, x-sync-source',
+    allowedHeaders:
+      'Content-Type, Authorization, x-platform, x-sync-source, x-academic-start, x-academic-end, x-academic-id',
     optionsSuccessStatus: 204,
   });
 

@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
+import { RequestContextService } from '../common/context/request-context.service';
 import { CreateHomeworkDto } from './dto/create-homework.dto';
 import { join } from 'path';
 import * as fs from 'fs';
@@ -20,8 +21,15 @@ export class HomeworkService {
   // ────────────────────────────────────────────────
   async fetchHomeworkByClassId(schoolId: number, classId: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+
     return (client as any).homework.findMany({
-      where: { school_id: Number(schoolId), class_id: Number(classId) },
+      where: { 
+        school_id: Number(schoolId), 
+        class_id: Number(classId),
+        ...(academicStart && academicEnd ? { assigned_date: { gte: academicStart, lte: academicEnd } } : {}),
+      },
       orderBy: { id: 'desc' },
     });
   }
@@ -31,11 +39,15 @@ export class HomeworkService {
   // ────────────────────────────────────────────────
   async fetchHomeworkByStaff(schoolId: number, classId: number, staff?: string) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+
     return (client as any).homework.findMany({
       where: {
         school_id: Number(schoolId),
         class_id: Number(classId),
         ...(staff ? { assigned_by: staff } : {}),
+        ...(academicStart && academicEnd ? { assigned_date: { gte: academicStart, lte: academicEnd } } : {}),
       },
       orderBy: { id: 'desc' },
     });

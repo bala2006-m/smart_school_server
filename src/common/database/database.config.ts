@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { RequestContextService } from '../context/request-context.service';
 
 export interface DatabaseConfig {
   type: 'cloud' | 'local' | 'hybrid' | 'mobile-cloud' | 'desktop-local' | 'web-local';
@@ -33,6 +34,15 @@ const WRITE_METHODS = new Set([
   'delete', 'deleteMany',
 ]);
 
+const ACADEMIC_FILTER_METHODS = new Set([
+  'findMany',
+  'findFirst',
+  'findFirstOrThrow',
+  'count',
+  'aggregate',
+  'groupBy',
+]);
+
 @Injectable()
 export class DatabaseConfigService implements OnModuleDestroy {
   private config: DatabaseConfig;
@@ -58,6 +68,26 @@ export class DatabaseConfigService implements OnModuleDestroy {
     staffAttendance: 'staffattendance',
     studentAttendance: 'studentattendance',
     studentFees: 'studentfees',
+  };
+  private readonly academicDateFieldByModel: Record<string, string> = {
+    studentattendance: 'date',
+    staffattendance: 'date',
+    homework: 'assigned_date',
+    holidays: 'date',
+    leaverequest: 'from_date',
+    exammarks: 'created_at',
+    examtimetable: 'created_at',
+    feepayments: 'payment_date',
+    finance: 'created_at',
+    busfeepayment: 'payment_date',
+    rtefeepayment: 'payment_date',
+    studentfees: 'createdAt',
+    tickets: 'created_at',
+    apppayment: 'createdAt',
+    realtimemessage: 'createdAt',
+    feedback: 'created_at',
+    imageandvideos: 'date',
+    messages: 'date',
   };
 
   // Connectivity & offline sync state
@@ -460,6 +490,50 @@ export class DatabaseConfigService implements OnModuleDestroy {
     return this.isConnectivityError(error) || this.isSchemaError(error);
   }
 
+  private getAcademicRangeFilterForModel(modelName: string): { [key: string]: any } | null {
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+    if (!academicStart || !academicEnd) return null;
+
+    const normalizedModel = modelName.toLowerCase();
+    const dateField = this.academicDateFieldByModel[normalizedModel];
+    if (!dateField) return null;
+
+    // messages.date is stored as string in DB, so skip automatic date-range filtering.
+    if (normalizedModel === 'messages') return null;
+
+    return {
+      [dateField]: {
+        gte: academicStart,
+        lte: academicEnd,
+      },
+    };
+  }
+
+  private applyAcademicFilterToArgs(
+    modelName: string,
+    methodName: string,
+    args: any[],
+  ): any[] {
+    if (!ACADEMIC_FILTER_METHODS.has(methodName)) return args;
+
+    const academicWhere = this.getAcademicRangeFilterForModel(modelName);
+    if (!academicWhere) return args;
+
+    const nextArgs = [...args];
+    const baseArg = (nextArgs[0] ?? {}) as Record<string, any>;
+    const existingWhere = baseArg.where;
+
+    nextArgs[0] = {
+      ...baseArg,
+      where: existingWhere
+        ? { AND: [existingWhere, academicWhere] }
+        : academicWhere,
+    };
+
+    return nextArgs;
+  }
+
   /**
    * Sync all pending writes to cloud.
    * Called every 60s and immediately when network is restored.
@@ -533,19 +607,37 @@ export class DatabaseConfigService implements OnModuleDestroy {
     const aliasMap = this.legacyModelAliases;
     const proxy = new Proxy(client as any, {
       get(target: any, prop: string | symbol, receiver: any) {
+        const wrapModelDelegate = (modelName: string, value: any) => {
+          if (!value || typeof value !== 'object') return value;
+
+          return new Proxy(value, {
+            get: (modelTarget: any, methodName: string | symbol, modelReceiver: any) => {
+              const originalMethod = Reflect.get(modelTarget, methodName, modelReceiver);
+              if (typeof methodName !== 'string' || typeof originalMethod !== 'function') {
+                return originalMethod;
+              }
+
+              return (...args: any[]) => {
+                const filteredArgs = this.applyAcademicFilterToArgs(modelName, methodName, args);
+                return originalMethod.apply(modelTarget, filteredArgs);
+              };
+            },
+          });
+        };
+
         const directValue = Reflect.get(target, prop, receiver);
-        if (directValue !== undefined || typeof prop !== 'string') {
-          return directValue;
-        }
+        if (typeof prop === 'string') {
+          if (directValue !== undefined) {
+            return wrapModelDelegate(prop, directValue);
+          }
 
-        const alias = aliasMap[prop];
-        if (!alias) {
-          return directValue;
-        }
-
-        const mappedValue = Reflect.get(target, alias, receiver);
-        if (mappedValue !== undefined) {
-          return mappedValue;
+          const alias = aliasMap[prop];
+          if (alias) {
+            const mappedValue = Reflect.get(target, alias, receiver);
+            if (mappedValue !== undefined) {
+              return wrapModelDelegate(alias, mappedValue);
+            }
+          }
         }
 
         return directValue;

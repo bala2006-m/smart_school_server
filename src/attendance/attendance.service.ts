@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   InternalServerErrorException,
@@ -9,6 +10,7 @@ import { DatabaseConfigService } from '../common/database/database.config';
 import { PrismaService } from '../common/prisma.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CreateStaffAttendanceDto } from './dto/create-staff-attendance.dto';
+import { RequestContextService } from '../common/context/request-context.service';
 
 @Injectable()
 export class AttendanceService {
@@ -139,8 +141,13 @@ export class AttendanceService {
       school_id: parseInt(schoolId),
     };
 
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+
     if (date) {
       whereCondition.date = new Date(date);
+    } else if (academicStart && academicEnd) {
+      whereCondition.date = { gte: academicStart, lte: academicEnd };
     }
 
     const client = this.dbConfig.getDatabaseClient(this.request);
@@ -356,7 +363,7 @@ export class AttendanceService {
         username_school_id_date: {
           username,
           date: new Date(date),
-          school_id
+          school_id,
         },
       },
       select: {
@@ -372,111 +379,21 @@ export class AttendanceService {
       record: record ?? { fn_status: null, an_status: null },
     };
   }
+
   async getStudentAttendanceBetweenDateRange(
     username: string,
-    fromDateInput: string,
-    toDateInput: string,
-    school_id: number
+    fromDate: string,
+    toDate: string,
+    school_id: number,
   ) {
-    const fromDate = new Date(fromDateInput);
-    const toDate = new Date(toDateInput);
-
-    if (
-      !username ||
-      isNaN(fromDate.getTime()) ||
-      isNaN(toDate.getTime()) ||
-      fromDate > toDate
-    ) {
-      return {
-        status: 'error',
-        message: 'Invalid or missing username, fromDate, or toDate',
-      };
-    }
-
     const client = this.dbConfig.getDatabaseClient(this.request);
     const records = await (client as any).studentAttendance.findMany({
       where: {
         username,
-        date: {
-          gte: fromDate,
-          lte: toDate,
-        },
-        school_id: Number(school_id)
-      },
-      select: {
-        date: true,
-        fn_status: true,
-        an_status: true,
-      },
-      orderBy: { date: 'asc' },
-    });
-
-    const fnPresentDates: string[] = [];
-    const anPresentDates: string[] = [];
-    const fnAbsentDates: string[] = [];
-    const anAbsentDates: string[] = [];
-
-    for (const record of records) {
-      const dateStr = record.date.toISOString().split('T')[0];
-
-      if (record.fn_status === 'P') fnPresentDates.push(dateStr);
-      if (record.fn_status === 'A') fnAbsentDates.push(dateStr);
-
-      if (record.an_status === 'P') anPresentDates.push(dateStr);
-      if (record.an_status === 'A') anAbsentDates.push(dateStr);
-    }
-
-    const totalSessions = records.length * 2;
-    const totalPresent = fnPresentDates.length + anPresentDates.length;
-    const totalPercentage = records.length > 0
-      ? parseFloat(((totalPresent / totalSessions) * 100).toFixed(2))
-      : 0;
-
-
-    return {
-      status: 'success',
-      TotalMarking: records.length,
-      fnPresentDates,
-      anPresentDates,
-      fnAbsentDates,
-      anAbsentDates,
-      totalPercentage: Number(totalPercentage.toFixed(2)),
-    };
-  }
-
-
-  async getStaffMonthly(username: string, month: number, year: number, school_id: number) {
-    const monthNum = Number(month);
-    const yearNum = Number(year);
-
-    if (
-      !username ||
-      isNaN(monthNum) ||
-      isNaN(yearNum) ||
-      monthNum < 1 ||
-      monthNum > 12 ||
-      yearNum < 1900 ||
-      yearNum > 2100
-    ) {
-      return {
-        status: 'error',
-        message: 'Invalid or missing username, month, or year',
-        monthNum,
-        yearNum,
-      };
-    }
-
-    const fromDate = new Date(yearNum, monthNum - 1, 1);
-    const toDate = new Date(yearNum, monthNum, 0);
-
-    const client = this.dbConfig.getDatabaseClient(this.request);
-    const records = await (client as any).staffAttendance.findMany({
-      where: {
-        username,
         school_id: Number(school_id),
         date: {
-          gte: fromDate,
-          lte: toDate,
+          gte: new Date(fromDate),
+          lte: new Date(toDate),
         },
       },
       select: {
@@ -487,63 +404,19 @@ export class AttendanceService {
       orderBy: { date: 'asc' },
     });
 
-    // Instead of counts, collect arrays of dates for each category
-    const fnPresentDates: string[] = [];
-    const anPresentDates: string[] = [];
-    const fnAbsentDates: string[] = [];
-    const anAbsentDates: string[] = [];
-
-    for (const record of records) {
-      const dateStr = record.date.toISOString().split('T')[0]; // Format 'YYYY-MM-DD'
-
-      if (record.fn_status === 'P') fnPresentDates.push(dateStr);
-      if (record.fn_status === 'A') fnAbsentDates.push(dateStr);
-
-      if (record.an_status === 'P') anPresentDates.push(dateStr);
-      if (record.an_status === 'A') anAbsentDates.push(dateStr);
-    }
-
-    const totalSessions = records.length * 2; // Each day has FN + AN
-    const totalPresent = fnPresentDates.length + anPresentDates.length;
-    const totalPercentage = records.length > 0
-      ? parseFloat(((totalPresent / records.length) * 100).toFixed(2))
-      : 0;
-
-    return {
-      status: 'success',
-      TotalMarking: records.length, // Total marking days
-      month,
-      year,
-      fnPresentDates,
-      anPresentDates,
-      fnAbsentDates,
-      anAbsentDates,
-      totalPercentage: Number(totalPercentage.toFixed(2)),
-    };
+    return { status: 'success', student: records };
   }
 
-  async getStaffAttendanceBetweenDateRange(
+  async getStaffMonthly(
     username: string,
-    fromDateInput: string,
-    toDateInput: string,
+    month: number,
+    year: number,
     school_id: number,
   ) {
-    const fromDate = new Date(fromDateInput);
-    const toDate = new Date(toDateInput);
-
-    if (
-      !username ||
-      isNaN(fromDate.getTime()) ||
-      isNaN(toDate.getTime()) ||
-      fromDate > toDate
-    ) {
-      return {
-        status: 'error',
-        message: 'Invalid or missing username, fromDate, or toDate',
-      };
-    }
-
+    const fromDate = new Date(year, month - 1, 1);
+    const toDate = new Date(year, month, 0);
     const client = this.dbConfig.getDatabaseClient(this.request);
+
     const records = await (client as any).staffAttendance.findMany({
       where: {
         username,
@@ -561,80 +434,75 @@ export class AttendanceService {
       orderBy: { date: 'asc' },
     });
 
-    const fnPresentDates: string[] = [];
-    const anPresentDates: string[] = [];
-    const fnAbsentDates: string[] = [];
-    const anAbsentDates: string[] = [];
-
-    for (const record of records) {
-      const dateStr = record.date.toISOString().split('T')[0];
-
-      if (record.fn_status === 'P') fnPresentDates.push(dateStr);
-      if (record.fn_status === 'A') fnAbsentDates.push(dateStr);
-
-      if (record.an_status === 'P') anPresentDates.push(dateStr);
-      if (record.an_status === 'A') anAbsentDates.push(dateStr);
-    }
-
-    const totalSessions = records.length * 2;
-    const totalPresent = fnPresentDates.length + anPresentDates.length;
-    const totalPercentage = totalSessions === 0 ? 0 : (totalPresent / totalSessions) * 100;
-
-    return {
-      status: 'success',
-      TotalMarking: records.length,
-      fnPresentDates,
-      anPresentDates,
-      fnAbsentDates,
-      anAbsentDates,
-      totalPercentage: Number(totalPercentage.toFixed(2)),
-    };
+    return { status: 'success', staff: records };
   }
 
   async fetchAttendance(date?: string, schoolId?: string) {
-    const whereClause: any = {};
-    if (date) whereClause.date = new Date(date);
-    if (schoolId) whereClause.school_id = Number(schoolId);
+    if (!schoolId) return { status: 'success', staff: [] };
+
+    const where: any = { school_id: Number(schoolId) };
+    if (date) where.date = new Date(date);
 
     const client = this.dbConfig.getDatabaseClient(this.request);
-    const attendance = await (client as any).staffAttendance.findMany({
-      where: whereClause,
+    const records = await (client as any).staffAttendance.findMany({
+      where,
       select: {
         username: true,
         date: true,
         fn_status: true,
         an_status: true,
       },
+      orderBy: { date: 'asc' },
     });
 
-    return {
-      status: 'success',
-      staff: attendance,
-    };
+    return { status: 'success', staff: records };
   }
 
-  async fetchStaffAttendanceByUsername(username?: string, schoolId?: string) {
-    const whereClause: any = {};
-    if (!schoolId) {
-      throw new BadRequestException('School ID is required');
-    }
-    if (username) whereClause.username = username;
-    whereClause.school_id = Number(schoolId);
-
+  async getStaffAttendanceBetweenDateRange(
+    username: string,
+    fromDate: string,
+    toDate: string,
+    school_id: number,
+  ) {
     const client = this.dbConfig.getDatabaseClient(this.request);
-    const attendance = await (client as any).staffAttendance.findMany({
-      where: whereClause,
+    const records = await (client as any).staffAttendance.findMany({
+      where: {
+        username,
+        school_id: Number(school_id),
+        date: {
+          gte: new Date(fromDate),
+          lte: new Date(toDate),
+        },
+      },
       select: {
         date: true,
         fn_status: true,
         an_status: true,
       },
+      orderBy: { date: 'asc' },
     });
 
-    return {
-      status: 'success',
-      staff: attendance,
-    };
+    return { status: 'success', staff: records };
+  }
+
+  async fetchStaffAttendanceByUsername(username?: string, schoolId?: string) {
+    if (!username || !schoolId) return { status: 'success', staff: [] };
+
+    const client = this.dbConfig.getDatabaseClient(this.request);
+    const records = await (client as any).staffAttendance.findMany({
+      where: {
+        username,
+        school_id: Number(schoolId),
+      },
+      select: {
+        date: true,
+        fn_status: true,
+        an_status: true,
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    return { status: 'success', staff: records };
   }
 
   async getAbsentees(

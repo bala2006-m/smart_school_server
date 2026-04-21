@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RequestContextMiddleware } from './common/context/request-context.middleware';
 import { HolidaysModule } from './holidays/holidays.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { StaffModule } from './staff/staff.module';
@@ -86,4 +87,8 @@ import { AcadamicYearModule } from './acadamic_year/acadamic_year.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

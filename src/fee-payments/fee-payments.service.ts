@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
+import { RequestContextService } from '../common/context/request-context.service';
 
 @Injectable()
 export class FeePaymentsService {
@@ -13,7 +14,13 @@ export class FeePaymentsService {
 
   async getAll() {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+
     return (client as any).feePayments.findMany({
+      where: {
+        ...(academicStart && academicEnd ? { payment_date: { gte: academicStart, lte: academicEnd } } : {}),
+      },
       include: { studentfees: true },
     });
   }
