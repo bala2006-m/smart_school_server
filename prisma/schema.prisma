@@ -4,9 +4,9 @@ generator client {
 
 datasource db {
   provider = "mysql"
-    // url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
+    url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
 
-  url      = "mysql://root:bala30012006@localhost:3306/ramchin_smart_school_local"
+  // url      = "mysql://root:bala30012006@localhost:3306/ramchin_smart_school_local"
 }
 model accadamicYear {
   id Int @id @default(autoincrement())
