@@ -4,9 +4,21 @@ generator client {
 
 datasource db {
   provider = "mysql"
+    // url      = "mysql://schoolAttendance:Sensarsoft%40123@[2a02:4780:12:f6a7::1]:3306/ramchin_smart_school"
+
   url      = "mysql://root:bala30012006@localhost:3306/ramchin_smart_school_local"
 }
+model accadamicYear {
+  id Int @id @default(autoincrement())
+  school_id Int
+  start_date DateTime 
+  end_date DateTime
+  is_current Boolean @default(false)
+  updated_at DateTime @default(now())
+  school          school          @relation(fields: [school_id], references: [id])
 
+  @@map("AccadamicYear")
+}
 model admin {
   id              Int             @id @default(autoincrement())
   name            String?
@@ -32,6 +44,7 @@ model admin {
   @@unique([mobile, school_id], map: "Admin_mobile_school_id_key")
   @@unique([username, school_id], map: "Admin_username_school_id_key")
   @@index([school_id], map: "Admin_school_id_idx")
+  @@map("Admin")
 }
 
 model apppayment {
@@ -52,6 +65,7 @@ model apppayment {
   school        school                 @relation(fields: [schoolId], references: [id], map: "AppPayment_schoolId_fkey")
 
   @@index([schoolId], map: "AppPayment_schoolId_fkey")
+  @@map("AppPayment")
 }
 
 model attendance_user {
@@ -73,6 +87,7 @@ model attendance_user {
 
   @@unique([username, school_id], map: "Attendance_user_username_school_id_key")
   @@index([school_id], map: "Attendance_user_school_id_idx")
+  @@map("Attendance_user")
 }
 
 model blockedschool {
@@ -85,6 +100,7 @@ model blockedschool {
   school      school   @relation(fields: [school_id], references: [id], map: "BlockedSchool_school_id_fkey")
 
   @@index([school_id], map: "BlockedSchool_school_id_idx")
+  @@map("BlockedSchool")
 }
 
 model busfeepayment {
@@ -116,6 +132,7 @@ model busfeepayment {
   @@index([created_by, school_id], map: "BusFeePayment_created_by_school_id_fkey")
   @@index([school_id], map: "BusFeePayment_school_id_fkey")
   @@index([student_id, school_id], map: "BusFeePayment_student_id_school_id_fkey")
+  @@map("BusFeePayment")
 }
 
 model busfeestructure {
@@ -138,6 +155,7 @@ model busfeestructure {
   school        school          @relation(fields: [school_id], references: [id], map: "BusFeeStructure_school_id_fkey")
 
   @@index([school_id], map: "BusFeeStructure_school_id_fkey")
+  @@map("BusFeeStructure")
 }
 
 model classes {
@@ -162,9 +180,10 @@ model classes {
   studentfees       studentfees[]
   staff             staff[]             @relation("class_ids")
   class_teacher     staff[]             @relation("class_teacher")
-  holidays          holidays[]          @relation("holidayclasses")
+  holidays          holidays[]          @relation("HolidayClasses")
 
   @@index([school_id], map: "Classes_school_id_idx")
+  @@map("Classes")
 }
 
 model classtimetable {
@@ -183,6 +202,7 @@ model classtimetable {
   @@unique([schoolId, classesId, dayOfWeek, periodNumber], map: "ClassTimetable_schoolId_classesId_dayOfWeek_periodNumber_key")
   @@index([classesId], map: "ClassTimetable_classesId_idx")
   @@index([schoolId], map: "ClassTimetable_schoolId_idx")
+  @@map("ClassTimetable")
 }
 
 model exammarks {
@@ -210,6 +230,7 @@ model exammarks {
 
   @@unique([school_id, class_id, username, title], map: "ExamMarks_school_id_class_id_username_title_key")
   @@index([class_id], map: "ExamMarks_class_id_fkey")
+  @@map("ExamMarks")
 }
 
 model examtimetable {
@@ -230,6 +251,7 @@ model examtimetable {
 
   @@unique([school_id, class_id, exam_title], map: "ExamTimeTable_school_id_class_id_exam_title_key")
   @@index([class_id], map: "ExamTimeTable_class_id_fkey")
+  @@map("ExamTimeTable")
 }
 
 model feedback {
@@ -249,6 +271,7 @@ model feedback {
 
   @@index([class_id], map: "Feedback_class_id_fkey")
   @@index([school_id], map: "Feedback_school_id_fkey")
+  @@map("Feedback")
 }
 
 model feepayments {
@@ -265,6 +288,7 @@ model feepayments {
   studentfees    studentfees @relation(fields: [student_fee_id], references: [aId], map: "FeePayments_student_fee_id_fkey")
 
   @@index([student_fee_id], map: "FeePayments_student_fee_id_fkey")
+  @@map("FeePayments")
 }
 
 model feestructure {
@@ -290,6 +314,7 @@ model feestructure {
 
   @@unique([school_id, class_id, title], map: "FeeStructure_school_id_class_id_title_key")
   @@index([class_id], map: "FeeStructure_class_id_fkey")
+  @@map("FeeStructure")
 }
 
 model finance {
@@ -307,6 +332,7 @@ model finance {
   school      school       @relation(fields: [school_id], references: [id], map: "Finance_school_id_fkey")
 
   @@index([school_id], map: "Finance_school_id_fkey")
+  @@map("Finance")
 }
 
 model holidays {
@@ -321,9 +347,10 @@ model holidays {
   is_deleted  Boolean   @default(false)
   sync_status String    @default("synced")
   school      school?   @relation(fields: [school_id], references: [id], map: "Holidays_school_id_fkey")
-  classes     classes[] @relation("holidayclasses")
+  classes     classes[] @relation("HolidayClasses")
 
   @@index([school_id], map: "Holidays_school_id_idx")
+  @@map("Holidays")
 }
 
 model homework {
@@ -342,6 +369,7 @@ model homework {
   sync_status   String   @default("synced")
 
   @@index([school_id, class_id], map: "Homework_school_id_class_id_idx")
+  @@map("Homework")
 }
 
 model imageandvideos {
@@ -358,6 +386,7 @@ model imageandvideos {
   school      school              @relation(fields: [school_id], references: [id], map: "ImageAndVideos_school_id_fkey")
 
   @@index([school_id], map: "ImageAndVideos_school_id_fkey")
+  @@map("ImageAndVideos")
 }
 
 model leaverequest {
@@ -377,6 +406,7 @@ model leaverequest {
 
   @@index([school_id, class_id], map: "LeaveRequest_school_id_class_id_idx")
   @@index([username], map: "LeaveRequest_username_idx")
+  @@map("LeaveRequest")
 }
 
 model messages {
@@ -389,6 +419,7 @@ model messages {
   school      school  @relation(fields: [school_id], references: [id], onDelete: Cascade, map: "Messages_school_id_fkey")
 
   @@index([school_id], map: "Messages_school_id_idx")
+  @@map("Messages")
 }
 
 model realtimemessage {
@@ -406,6 +437,7 @@ model realtimemessage {
 
   @@index([school_id], map: "RealTimeMessage_school_id_idx")
   @@index([senderId], map: "RealTimeMessage_senderId_idx")
+  @@map("RealTimeMessage")
 }
 
 model rtefeepayment {
@@ -435,6 +467,7 @@ model rtefeepayment {
   @@index([rte_fee_structure_id], map: "RteFeePayment_rte_fee_structure_id_fkey")
   @@index([school_id], map: "RteFeePayment_school_id_fkey")
   @@index([student_id, school_id], map: "RteFeePayment_student_id_school_id_fkey")
+  @@map("RteFeePayment")
 }
 
 model rtestructure {
@@ -457,6 +490,7 @@ model rtestructure {
 
   @@index([class_id], map: "RteStructure_class_id_fkey")
   @@index([school_id], map: "RteStructure_school_id_fkey")
+  @@map("RteStructure")
 }
 
 model school {
@@ -495,6 +529,8 @@ model school {
   studentattendance studentattendance[]
   studentfees       studentfees[]
   tickets           tickets[]
+  accadamicYear accadamicYear[]
+  @@map("School")
 }
 
 model staff {
@@ -523,6 +559,7 @@ model staff {
   @@unique([mobile, school_id], map: "Staff_mobile_school_id_key")
   @@unique([username, school_id], map: "Staff_username_school_id_key")
   @@index([school_id], map: "Staff_school_id_idx")
+  @@map("Staff")
 }
 
 model staffattendance {
@@ -539,6 +576,7 @@ model staffattendance {
 
   @@unique([username, school_id, date], map: "StaffAttendance_username_school_id_date_key")
   @@index([school_id], map: "StaffAttendance_school_id_idx")
+  @@map("StaffAttendance")
 }
 
 model student {
@@ -563,6 +601,7 @@ model student {
   is_left           Boolean             @default(true)
   left_detail       Json
   sync_status       String              @default("synced")
+  acadamic_detail Json @default("null")
   busfeepayment     busfeepayment[]
   rtefeepayment     rtefeepayment[]
   classes           classes             @relation(fields: [class_id], references: [id], map: "Student_class_id_fkey")
@@ -574,6 +613,7 @@ model student {
   @@unique([username, school_id], map: "Student_username_school_id_key")
   @@index([class_id], map: "Student_class_id_idx")
   @@index([school_id], map: "Student_school_id_idx")
+  @@map("Student")
 }
 
 model studentattendance {
@@ -593,6 +633,7 @@ model studentattendance {
   @@unique([username, school_id, date], map: "StudentAttendance_username_school_id_date_key")
   @@index([class_id], map: "StudentAttendance_class_id_idx")
   @@index([school_id], map: "StudentAttendance_school_id_idx")
+  @@map("StudentAttendance")
 }
 
 model studentfees {
@@ -622,6 +663,7 @@ model studentfees {
   @@index([id], map: "StudentFees_id_fkey")
   @@index([school_id], map: "StudentFees_school_id_fkey")
   @@index([username, school_id], map: "StudentFees_username_school_id_fkey")
+  @@map("StudentFees")
 }
 
 model tickets {
@@ -640,6 +682,7 @@ model tickets {
   school      school   @relation(fields: [school_id], references: [id], map: "Tickets_school_id_fkey")
 
   @@index([school_id], map: "Tickets_school_id_fkey")
+  @@map("Tickets")
 }
 
 enum leaverequest_role {

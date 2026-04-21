@@ -13,7 +13,7 @@ export class ExamTimeTableService {
   ) { }
 
   // Create Exam Timetable
-  async create(data: Prisma.ExamTimeTableCreateInput) {
+  async create(data: Prisma.examtimetableCreateInput) {
     const client = this.dbConfig.getDatabaseClient(this.request);
     return (client as any).examTimeTable.create({
       data,
@@ -44,7 +44,7 @@ export class ExamTimeTableService {
   }
 
   // Update Timetable
-  async update(id: number, data: Prisma.ExamTimeTableUpdateInput) {
+  async update(id: number, data: Prisma.examtimetableUpdateInput) {
     const client = this.dbConfig.getDatabaseClient(this.request);
     return (client as any).examTimeTable.update({
       where: { id },

@@ -14,7 +14,7 @@ export class FeePaymentsService {
   async getAll() {
     const client = this.dbConfig.getDatabaseClient(this.request);
     return (client as any).feePayments.findMany({
-      include: { studentFee: true },
+      include: { studentfees: true },
     });
   }
 
@@ -22,7 +22,7 @@ export class FeePaymentsService {
     const client = this.dbConfig.getDatabaseClient(this.request);
     return (client as any).feePayments.findUnique({
       where: { id },
-      include: { studentFee: true },
+      include: { studentfees: true },
     });
   }
 

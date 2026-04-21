@@ -141,11 +141,12 @@ export class DashboardService {
     const where: any = { school_id, createdAt: { gte: new Date(startDate), lte: new Date(endDate) } };
     if (class_id) where.class_id = class_id;
 
-    const fees = await (client as any).studentFees.findMany({ where, include: { payments: true } });
+    const fees = await (client as any).studentFees.findMany({ where, include: { feepayments: true } });
 
     const trends = {};
     fees.forEach(fee => {
-      const month = `${fee.createdAt.getFullYear()}-${String(fee.createdAt.getMonth() + 1).padStart(2, '0')}`;
+      const effectiveDate = fee.createdAt ? new Date(fee.createdAt) : new Date(fee.updated_at);
+      const month = `${effectiveDate.getFullYear()}-${String(effectiveDate.getMonth() + 1).padStart(2, '0')}`;
       if (!trends[month]) trends[month] = { total: 0, collected: 0 };
       trends[month].total += fee.total_amount;
       trends[month].collected += fee.paid_amount;
@@ -219,7 +220,14 @@ export class DashboardService {
     const where: any = { school_id };
     if (class_id) where.class_id = class_id;
 
-    const students = await (client as any).student.findMany({ where, include: { attendance: true, studentFees: true, class: true } });
+    const students = await (client as any).student.findMany({
+      where,
+      include: {
+        studentattendance: true,
+        studentfees: true,
+        classes: true,
+      },
+    });
 
     // Fetch examMarks for all students
     const usernames = students.map(s => s.username);
@@ -232,8 +240,8 @@ export class DashboardService {
 
     const insights = students.map(student => {
       const studentExamMarks = examMarksMap[student.username] || [];
-      const totalDays = student.attendance.length * 2; // fn and an
-      const presentDays = student.attendance.reduce((sum, a) => {
+      const totalDays = student.studentattendance.length * 2; // fn and an
+      const presentDays = student.studentattendance.reduce((sum, a) => {
         return sum + (a.fn_status === 'P' ? 1 : 0) + (a.an_status === 'P' ? 1 : 0);
       }, 0);
       const attendancePercent = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
@@ -246,7 +254,7 @@ export class DashboardService {
 
       const engagement = (attendancePercent * 0.5) + (avgMarks * 0.5); // Simple score
 
-      return { username: student.username, name: student.name, class: `${student.class?.class} ${student.class?.section}` || 'Unknown', gender: student.gender || 'Unknown', attendance_percent: attendancePercent, avg_marks: avgMarks, engagement_score: engagement };
+      return { username: student.username, name: student.name, class: `${student.classes?.class} ${student.classes?.section}` || 'Unknown', gender: student.gender || 'Unknown', attendance_percent: attendancePercent, avg_marks: avgMarks, engagement_score: engagement };
     });
 
     return { status: 'success', school_id, insights };

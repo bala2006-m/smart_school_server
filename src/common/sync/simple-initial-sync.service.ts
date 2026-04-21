@@ -1,12 +1,39 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DatabaseConfigService } from '../database/database.config';
-import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class SimpleInitialSyncService {
   private readonly logger = new Logger(SimpleInitialSyncService.name);
 
   constructor(private readonly dbConfig: DatabaseConfigService) { }
+
+  private isMissingTableError(error: any): boolean {
+    const message = String(error?.message || '').toLowerCase();
+    return error?.code === 'P2021' || (
+      message.includes('table') &&
+      message.includes('does not exist')
+    );
+  }
+
+  private async isCloudSchemaReady(cloudClient: any): Promise<boolean> {
+    try {
+      if (!cloudClient?.school?.count) {
+        this.logger.warn('Cloud client missing school delegate; skipping simple initial sync');
+        return false;
+      }
+
+      await cloudClient.school.count({ where: { id: -1 } });
+      return true;
+    } catch (error) {
+      if (this.isMissingTableError(error)) {
+        this.logger.warn('Cloud schema is unavailable (tables missing). Skipping simple initial sync.');
+        return false;
+      }
+
+      this.logger.warn(`Cloud schema pre-check failed. Skipping simple initial sync: ${error?.message || error}`);
+      return false;
+    }
+  }
 
   private async shouldSkipSync(tableName: string, schoolIdInput: number | string, cloudClient: any, localClient: any): Promise<boolean> {
     const schoolId = Number(schoolIdInput);
@@ -24,6 +51,7 @@ export class SimpleInitialSyncService {
           localCount = await localClient.blockedSchool.count({ where: { school_id: schoolId } });
           break;
 
+        case 'studentattendance':
         case 'studentAttendance':
           cloudCount = await cloudClient.studentAttendance.count({
             where: {
@@ -43,6 +71,7 @@ export class SimpleInitialSyncService {
           });
           break;
 
+        case 'staffattendance':
         case 'staffAttendance':
           cloudCount = await cloudClient.staffAttendance.count({
             where: {
@@ -68,6 +97,7 @@ export class SimpleInitialSyncService {
           break;
 
         case 'student':
+        case 'students':
           cloudCount = await cloudClient.student.count({ where: { school_id: schoolId } });
           localCount = await localClient.student.count({ where: { school_id: schoolId } });
           break;
@@ -100,6 +130,18 @@ export class SimpleInitialSyncService {
         case 'rtestructure':
           cloudCount = await cloudClient.rteStructure.count({ where: { school_id: schoolId } });
           localCount = await localClient.rteStructure.count({ where: { school_id: schoolId } });
+          break;
+
+        case 'classtimetable':
+        case 'classTimetable':
+          cloudCount = await cloudClient.classTimetable.count({ where: { schoolId: schoolId } });
+          localCount = await localClient.classTimetable.count({ where: { schoolId: schoolId } });
+          break;
+
+        case 'examtimetable':
+        case 'examTimetable':
+          cloudCount = await cloudClient.examTimetable.count({ where: { school_id: schoolId } });
+          localCount = await localClient.examTimetable.count({ where: { school_id: schoolId } });
           break;
 
         case 'holidays':
@@ -135,14 +177,14 @@ export class SimpleInitialSyncService {
         case 'feepayments':
           cloudCount = await cloudClient.feePayments.count({
             where: {
-              studentFee: {
+              studentfees: {
                 school_id: schoolId
               }
             }
           });
           localCount = await localClient.feePayments.count({
             where: {
-              studentFee: {
+              studentfees: {
                 school_id: schoolId
               }
             }
@@ -172,6 +214,12 @@ export class SimpleInitialSyncService {
         case 'messages':
           cloudCount = await cloudClient.messages.count({ where: { school_id: schoolId } });
           localCount = await localClient.messages.count({ where: { school_id: schoolId } });
+          break;
+
+        case 'accadamicyear':
+        case 'accadamicYear':
+          cloudCount = await cloudClient.accadamicYear.count({ where: { school_id: schoolId } });
+          localCount = await localClient.accadamicYear.count({ where: { school_id: schoolId } });
           break;
 
         default:
@@ -209,6 +257,23 @@ export class SimpleInitialSyncService {
     const cloudClient = this.dbConfig.getCloudClient();
     const localClient = this.dbConfig.getLocalClient();
 
+    if (!localClient) {
+      this.logger.warn('Local client is unavailable in hybrid mode. Skipping simple initial sync.');
+      return { success: false, synced: null };
+    }
+
+    const cloudSchemaReady = await this.isCloudSchemaReady(cloudClient);
+    if (!cloudSchemaReady) {
+      return {
+        success: true,
+        synced: {
+          total: 0,
+          skipped: 'all',
+          message: 'Cloud schema unavailable. Using local database only.',
+        },
+      };
+    }
+
     // For desktop users, check if all tables are already in sync
     const tablesToCheck: string[] = [
       'school', 'blockedSchool', 'attendance_user', 'admin', 'classes', 'staff', 'students',
@@ -216,7 +281,7 @@ export class SimpleInitialSyncService {
       'examtimetable', 'holidays', 'studentattendance', 'staffattendance',
       'homework', 'imageandvideos', 'leaverequest', 'tickets',
       'studentfees', 'feepayments', 'busfeepayment', 'rtefeepayment',
-      'exammarks', 'finance', 'messages'
+      'exammarks', 'finance', 'messages', 'accadamicyear'
     ];
 
     let allTablesInSync = true;
@@ -276,6 +341,7 @@ export class SimpleInitialSyncService {
       exammarks: 0,
       finance: 0,
       messages: 0,
+      accadamicyear: 0,
       total: 0,
     };
 
@@ -338,6 +404,9 @@ export class SimpleInitialSyncService {
 
       // 15. Messages (depends on attendance_user)
       await this.syncMessages(schoolId, cloudClient, localClient, syncResults);
+
+      // 16. Academic Year
+      await this.syncAccadamicYear(schoolId, cloudClient, localClient, syncResults);
 
       syncResults.total = Object.values(syncResults).reduce((sum, count) => sum + count, 0) - syncResults.total;
       this.logger.log(`🎉 SIMPLE initial sync completed: ${syncResults.total} total records synced`);
@@ -779,13 +848,13 @@ export class SimpleInitialSyncService {
         return;
       }
 
-      const cloudData = await cloudClient.examTimeTable.findMany({
+      const cloudData = await cloudClient.examTimetable.findMany({
         where: { school_id: schoolId },
         orderBy: { id: 'asc' }
       });
 
       // Get all local records for this school
-      const localData = await localClient.examTimeTable.findMany({
+      const localData = await localClient.examTimetable.findMany({
         where: { school_id: schoolId }
       });
 
@@ -799,7 +868,7 @@ export class SimpleInitialSyncService {
       // Upsert cloud records to local
       for (const item of cloudData) {
         try {
-          await localClient.examTimeTable.upsert({
+          await localClient.examTimetable.upsert({
             where: { id: item.id },
             update: item as any,
             create: item as any
@@ -814,7 +883,7 @@ export class SimpleInitialSyncService {
       for (const localId of localIds) {
         if (!cloudIds.has(localId)) {
           try {
-            await localClient.examTimeTable.delete({
+            await localClient.examTimetable.delete({
               where: { id: localId }
             });
             deletedCount++;
@@ -920,7 +989,13 @@ export class SimpleInitialSyncService {
           }
         }
       });
-      const localIds = new Set(localData.map(item => `${item.username}_${item.date.toISOString().split('T')[0]}`));
+      const getStudentAttendanceKey = (item: any): string => {
+        const dateStr = item.date instanceof Date
+          ? item.date.toISOString().split('T')[0]
+          : String(item.date).split('T')[0];
+        return `${item.username}|${item.school_id}|${dateStr}`;
+      };
+      const localIds = new Set(localData.map(item => getStudentAttendanceKey(item)));
 
       // Process in batches to handle large datasets
       while (hasMoreData) {
@@ -963,7 +1038,7 @@ export class SimpleInitialSyncService {
             if (studentExists) {
               await localClient.studentAttendance.upsert({
                 where: {
-                  username_school_date: {
+                  username_school_id_date: {
                     username: item.username,
                     school_id: item.school_id,
                     date: item.date
@@ -973,7 +1048,7 @@ export class SimpleInitialSyncService {
                 create: item as any
               });
               syncedCount++;
-              localIds.delete(`${item.username}_${item.date.toISOString().split('T')[0]}`);
+              localIds.delete(getStudentAttendanceKey(item));
             } else {
               this.logger.warn(`Skipping attendance for non-existent student: ${item.username}`);
             }
@@ -990,10 +1065,10 @@ export class SimpleInitialSyncService {
       for (const localId of localIds) {
         try {
           const idString = localId as string;
-          const [username, school_id, date] = idString.split('_');
+          const [username, school_id, date] = idString.split('|');
 
           // Find local record for status check
-          const localRecord = localData.find(item => `${item.username}_${item.date.toISOString().split('T')[0]}` === localId);
+          const localRecord = localData.find(item => getStudentAttendanceKey(item) === idString);
           if (localRecord && (localRecord as any).sync_status === 'pending') {
             this.logger.log(`⏭️ Skipping deletion of StudentAttendance ${idString} - sync_status is pending`);
             continue;
@@ -1001,7 +1076,7 @@ export class SimpleInitialSyncService {
 
           await localClient.studentAttendance.delete({
             where: {
-              username_school_date: {
+              username_school_id_date: {
                 username: username,
                 school_id: parseInt(school_id),
                 date: new Date(date)
@@ -1060,9 +1135,13 @@ export class SimpleInitialSyncService {
         }
       });
 
-      // Create sets for comparison
-      const cloudIds = new Set(cloudData.map(item => item.id));
-      const localIds = new Set(localData.map(item => item.id));
+      const getStaffAttendanceKey = (item: any): string => {
+        const dateStr = item.date instanceof Date
+          ? item.date.toISOString().split('T')[0]
+          : String(item.date).split('T')[0];
+        return `${item.username}|${item.school_id}|${dateStr}`;
+      };
+      const localIds = new Set(localData.map(item => getStaffAttendanceKey(item)));
 
       let syncedCount = 0;
       let deletedCount = 0;
@@ -1087,37 +1166,53 @@ export class SimpleInitialSyncService {
 
           if (staffExists) {
             await localClient.staffAttendance.upsert({
-              where: { id: item.id },
+              where: {
+                username_school_id_date: {
+                  username: item.username,
+                  school_id: item.school_id,
+                  date: item.date
+                }
+              },
               update: item as any,
               create: item as any
             });
             syncedCount++;
-            localIds.delete(item.id);
+            localIds.delete(getStaffAttendanceKey(item));
           } else {
             this.logger.warn(`Skipping attendance for non-existent staff: ${item.username}`);
           }
         } catch (error) {
-          this.logger.error(`StaffAttendance ${item.id} sync failed: ${error.message}`);
+          const dateStr = item.date instanceof Date
+            ? item.date.toISOString().split('T')[0]
+            : String(item.date).split('T')[0];
+          this.logger.error(`StaffAttendance ${item.username}|${item.school_id}|${dateStr} sync failed: ${error.message}`);
         }
       }
 
       // Delete local records not found in cloud (only last 30 days)
       for (const localId of localIds) {
         try {
-          if (localId) {
-            // Find local record for status check
-            const localRecord = localData.find(item => item.id === localId);
-            if (localRecord && (localRecord as any).sync_status === 'pending') {
-              this.logger.log(`⏭️ Skipping deletion of StaffAttendance ${localId} - sync_status is pending`);
-              continue;
-            }
+          const idString = localId as string;
+          const [username, school_id, date] = idString.split('|');
 
-            await localClient.staffAttendance.delete({
-              where: { id: localId }
-            });
-            deletedCount++;
-            this.logger.log(`🗑️ Deleted StaffAttendance ${localId} (not found in cloud)`);
+          // Find local record for status check
+          const localRecord = localData.find(item => getStaffAttendanceKey(item) === idString);
+          if (localRecord && (localRecord as any).sync_status === 'pending') {
+            this.logger.log(`⏭️ Skipping deletion of StaffAttendance ${idString} - sync_status is pending`);
+            continue;
           }
+
+          await localClient.staffAttendance.delete({
+            where: {
+              username_school_id_date: {
+                username: username,
+                school_id: parseInt(school_id),
+                date: new Date(date)
+              }
+            }
+          });
+          deletedCount++;
+          this.logger.log(`🗑️ Deleted StaffAttendance ${idString} (not found in cloud)`);
         } catch (error) {
           this.logger.error(`Failed to delete StaffAttendance ${localId}: ${error.message}`);
         }
@@ -1512,7 +1607,7 @@ export class SimpleInitialSyncService {
       // FeePayments doesn't have school_id, so we need to query through StudentFees relationship
       const cloudData = await cloudClient.feePayments.findMany({
         where: {
-          studentFee: {
+          studentfees: {
             school_id: schoolId
           }
         },
@@ -1522,7 +1617,7 @@ export class SimpleInitialSyncService {
       // Get local data through relationship
       const localData = await localClient.feePayments.findMany({
         where: {
-          studentFee: {
+          studentfees: {
             school_id: schoolId
           }
         }
@@ -1585,6 +1680,10 @@ export class SimpleInitialSyncService {
 
   async syncFinance(schoolId: number, cloudClient: any, localClient: any, syncResults: any) {
     await this.syncTableWithDeletion('finance', schoolId, cloudClient, localClient, syncResults, 'finance');
+  }
+
+  async syncAccadamicYear(schoolId: number, cloudClient: any, localClient: any, syncResults: any) {
+    await this.syncTableWithDeletion('accadamicYear', schoolId, cloudClient, localClient, syncResults, 'accadamicyear');
   }
 
   getSyncStatus() {

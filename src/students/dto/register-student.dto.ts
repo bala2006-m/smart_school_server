@@ -5,7 +5,7 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
-import { Gender } from '@prisma/client';
+import { student_gender } from '@prisma/client';
 
 export class RegisterStudentDto {
   @IsString()
@@ -19,7 +19,7 @@ export class RegisterStudentDto {
   email: string;
 
   @IsString()
-  gender: Gender;
+  gender: student_gender;
 
   @IsString()
   mobile: string;

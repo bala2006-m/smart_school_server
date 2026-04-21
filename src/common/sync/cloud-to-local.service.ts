@@ -8,6 +8,15 @@ export class CloudToLocalSyncService {
 
   constructor(private readonly dbConfig: DatabaseConfigService) {}
 
+  private isMissingTableError(error: any): boolean {
+    const code = String(error?.code || '');
+    const message = String(error?.message || '').toLowerCase();
+    return code === 'P2021' || (
+      message.includes('table') &&
+      message.includes('does not exist')
+    );
+  }
+
   // Sync all new messages from cloud to local database
   async syncMessagesFromCloud(schoolIdInput: number | string, lastSyncTime?: Date): Promise<{ synced: number; failed: number }> {
     const schoolId = Number(schoolIdInput);
@@ -17,6 +26,10 @@ export class CloudToLocalSyncService {
     }
     if (!this.dbConfig.isHybridMode()) {
       this.logger.warn('Not in hybrid mode, skipping cloud-to-local sync');
+      return { synced: 0, failed: 0 };
+    }
+    if (!this.dbConfig.getSyncStatus().isCloudOnline) {
+      this.logger.warn('Cloud unavailable, skipping cloud-to-local sync');
       return { synced: 0, failed: 0 };
     }
 
@@ -40,7 +53,7 @@ export class CloudToLocalSyncService {
       // Get messages from cloud that are newer than last sync
       const whereClause: any = { school_id: schoolId };
       if (lastSyncTime) {
-        whereClause.date = { gt: lastSyncTime as Date };
+        whereClause.date = { gt: lastSyncTime.toISOString() };
       }
 
       const cloudMessages = await cloudClient.messages.findMany({
@@ -89,6 +102,10 @@ export class CloudToLocalSyncService {
       return { synced: syncedCount, failed: failedCount };
 
     } catch (error) {
+      if (this.isMissingTableError(error)) {
+        this.logger.warn('Cloud messages table is unavailable. Skipping cloud-to-local sync.');
+        return { synced: 0, failed: 0 };
+      }
       this.logger.error(`Cloud-to-local sync failed: ${error.message}`);
       return { synced: 0, failed: 1 };
     } finally {

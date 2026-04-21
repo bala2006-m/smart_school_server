@@ -25,7 +25,7 @@ export class ExamMarksController {
     @Param('classId') classId: string,
     @Param('username') username: string,
     @Param('title') title: string,
-    @Body() updateData: Prisma.ExamMarksUpdateInput,
+    @Body() updateData: Prisma.exammarksUpdateInput,
   ) {
     const school_id = parseInt(schoolId);
     const class_id = parseInt(classId);

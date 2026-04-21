@@ -16,7 +16,7 @@ export class AccountsController {
     } catch (error) {
       return {
         status: 'error',
-        message: error.message,
+        message: error,
       };
     }
   }
@@ -31,7 +31,7 @@ export class AccountsController {
     } catch (error) {
       return {
         status: 'error',
-        message: error.message,
+        message: error,
       };
     }
   }

@@ -99,7 +99,7 @@ export class AttendanceService {
 
       await (client as any).studentAttendance.upsert({
         where: {
-          username_school_date: {
+          username_school_id_date: {
             username,
             date: attendanceDate,
             school_id: schoolIdInt,
@@ -280,7 +280,7 @@ export class AttendanceService {
     const client = this.dbConfig.getDatabaseClient(this.request);
     const record = await (client as any).studentAttendance.findUnique({
       where: {
-        username_school_date: {
+        username_school_id_date: {
           username,
           date: new Date(date),
           school_id
@@ -318,7 +318,7 @@ export class AttendanceService {
 
       await (client as any).staffAttendance.upsert({
         where: {
-          username_school_date_staff: {
+          username_school_id_date: {
             username,
             date: attendanceDate,
             school_id: schoolIdInt,
@@ -353,7 +353,7 @@ export class AttendanceService {
     const client = this.dbConfig.getDatabaseClient(this.request);
     const record = await (client as any).staffAttendance.findUnique({
       where: {
-        username_school_date_staff: {
+        username_school_id_date: {
           username,
           date: new Date(date),
           school_id

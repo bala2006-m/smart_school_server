@@ -1,6 +1,6 @@
+import { studentfees_status } from '@prisma/client';
 import { IsString, IsNumber, IsOptional, IsEnum, IsDateString } from 'class-validator';
-import { FeeStatus } from '@prisma/client'; // assumes you defined the enum in Prisma
-
+ 
 export class CreateBusFeeStructureDto {
   @IsNumber()
   school_id: number;
@@ -17,9 +17,9 @@ export class CreateBusFeeStructureDto {
   @IsNumber()
   total_amount: number;
 
-  @IsEnum(FeeStatus)
+  @IsEnum(studentfees_status)
   @IsOptional()
-  status?: FeeStatus;
+  status?: studentfees_status;
 
   @IsDateString()
   @IsOptional()
@@ -54,9 +54,9 @@ export class UpdateBusFeeStructureDto {
   @IsOptional()
   total_amount?: number;
 
-  @IsEnum(FeeStatus)
+  @IsEnum(studentfees_status)
   @IsOptional()
-  status?: FeeStatus;
+  status?: studentfees_status;
 
   @IsDateString()
   @IsOptional()

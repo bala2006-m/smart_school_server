@@ -1,14 +1,14 @@
 // src/finance/finance.controller.ts
 import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
 import { FinanceService } from './finance.service';
-import { Finance } from '@prisma/client';
-
+import { finance } from '@prisma/client';
+ 
 @Controller('finance')
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Post()
-  create(@Body() createFinanceDto: any): Promise<Finance> {
+  create(@Body() createFinanceDto: any): Promise<finance> {
     return this.financeService.create(createFinanceDto);
   }
 
@@ -34,12 +34,12 @@ export class FinanceController {
     return this.financeService.findDOut(Number(id));
   }
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateFinanceDto: any): Promise<Finance> {
+  update(@Param('id') id: string, @Body() updateFinanceDto: any): Promise<finance> {
     return this.financeService.update(Number(id), updateFinanceDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string): Promise<Finance> {
+  remove(@Param('id') id: string): Promise<finance> {
     return this.financeService.remove(Number(id));
   }
 }

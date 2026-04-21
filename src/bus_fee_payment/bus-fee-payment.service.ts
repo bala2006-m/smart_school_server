@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service'; // adjust path as needed
-import { BusFeesStatus } from '@prisma/client';
-import { tr } from 'date-fns/locale';
+ import { tr } from 'date-fns/locale';
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
-
+import { busfeepayment_status } from '@prisma/client';
+ 
 @Injectable()
 export class BusFeePaymentService {
   constructor(
@@ -48,12 +48,12 @@ export class BusFeePaymentService {
     if (!structure) throw new NotFoundException('Bus Fee Structure not found');
 
     const newTotal = totalPaid + Number(amount_paid);
-    let status: BusFeesStatus = BusFeesStatus.PENDING;
+    let status: busfeepayment_status = busfeepayment_status.PENDING;
 
 
-    if (newTotal == structure.total_amount) status = BusFeesStatus.PAID;
+    if (newTotal == structure.total_amount) status = busfeepayment_status.PAID;
     else if (newTotal > 0 && newTotal < structure.total_amount)
-      status = BusFeesStatus.PARTIALLY_PAID;
+      status = busfeepayment_status.PARTIALLY_PAID;
 
     const payment = await (client as any).busFeePayment.create({
       data: {

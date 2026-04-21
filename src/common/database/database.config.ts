@@ -38,11 +38,36 @@ export class DatabaseConfigService implements OnModuleDestroy {
   private config: DatabaseConfig;
   private readonly logger = new Logger(DatabaseConfigService.name);
   private dualWriteProxy: PrismaClient | null = null;
+  private readonly compatibilityProxyCache = new WeakMap<object, PrismaClient>();
+  private readonly legacyModelAliases: Record<string, string> = {
+    academicYear: 'accadamicYear',
+    acadamicYear: 'accadamicYear',
+    blockedSchool: 'blockedschool',
+    busFeePayment: 'busfeepayment',
+    busFeeStructure: 'busfeestructure',
+    classTimetable: 'classtimetable',
+    examMarks: 'exammarks',
+    examTimetable: 'examtimetable',
+    examTimeTable: 'examtimetable',
+    feePayments: 'feepayments',
+    feeStructure: 'feestructure',
+    imageAndVideos: 'imageandvideos',
+    leaveRequest: 'leaverequest',
+    rteFeePayment: 'rtefeepayment',
+    rteStructure: 'rtestructure',
+    staffAttendance: 'staffattendance',
+    studentAttendance: 'studentattendance',
+    studentFees: 'studentfees',
+  };
 
   // Connectivity & offline sync state
   private isCloudOnline = true;
+  private lastCloudIssue: string | null = null;
+  private isLocalOnline = false;
+  private lastLocalIssue: string | null = null;
   private pendingWrites: PendingWrite[] = [];
   private connectivityInterval: NodeJS.Timeout | null = null;
+  private localConnectivityInterval: NodeJS.Timeout | null = null;
   private syncInterval: NodeJS.Timeout | null = null;
   private isSyncing = false;
 
@@ -126,35 +151,103 @@ export class DatabaseConfigService implements OnModuleDestroy {
     return isDesktop;
   }
 
+  private getErrorSummary(error: any): string {
+    if (!error) return 'Empty error object';
+    if (typeof error === 'string') return error;
+
+    const parts: string[] = [];
+    const message =
+      typeof error.message === 'string' && error.message.trim().length > 0
+        ? error.message.split('\n')[0]
+        : '';
+
+    if (message) parts.push(message);
+    if (error.name) parts.push(`name=${error.name}`);
+    if (error.code) parts.push(`code=${error.code}`);
+    if (error.errorCode) parts.push(`errorCode=${error.errorCode}`);
+    if (error.clientVersion) parts.push(`clientVersion=${error.clientVersion}`);
+    if (error.meta) {
+      try {
+        parts.push(`meta=${JSON.stringify(error.meta)}`);
+      } catch {
+        parts.push('meta=[unserializable]');
+      }
+    }
+
+    if (parts.length > 0) return parts.join(' | ');
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+
   // ─── Background Jobs ──────────────────────────────────────────────
 
   private startBackgroundJobs() {
-    if (!this.config.localClient) return;
-
-    // Check cloud connectivity every 30 seconds
+    // Always keep cloud status fresh.
     this.connectivityInterval = setInterval(() => this.checkCloudConnectivity(), 30000);
-
-    // Retry pending writes every 60 seconds
-    this.syncInterval = setInterval(() => this.syncPendingToCloud(), 60000);
-
-    // Initial connectivity check
     this.checkCloudConnectivity();
+
+    if (!this.config.localClient) {
+      this.isLocalOnline = false;
+      this.lastLocalIssue = 'Local database client is not configured';
+      return;
+    }
+
+    // Keep local status fresh to decide between dual-write and cloud-only modes.
+    this.localConnectivityInterval = setInterval(() => this.checkLocalConnectivity(), 30000);
+    this.checkLocalConnectivity();
+
+    // Retry pending writes every 60 seconds (only meaningful when local mirror exists).
+    this.syncInterval = setInterval(() => this.syncPendingToCloud(), 60000);
   }
 
   private async checkCloudConnectivity(): Promise<void> {
     const wasOnline = this.isCloudOnline;
     try {
-      await this.config.cloudClient.$queryRaw`SELECT 1`;
+      // Validate connectivity and Prisma schema mapping for the cloud datasource.
+      await this.config.cloudClient.school.findFirst({
+        select: { id: true },
+      });
       this.isCloudOnline = true;
+      this.lastCloudIssue = null;
 
       if (!wasOnline) {
         this.logger.log('Cloud connection RESTORED - syncing pending records...');
         this.syncPendingToCloud();
       }
-    } catch {
+    } catch (error: any) {
       this.isCloudOnline = false;
+      this.lastCloudIssue = this.getErrorSummary(error);
       if (wasOnline) {
-        this.logger.warn('Cloud connection LOST - working in offline mode (local only)');
+        this.logger.warn(`Cloud connection/schema unavailable - working in offline mode (local only). Reason: ${this.lastCloudIssue}`);
+      }
+    }
+  }
+
+  private async checkLocalConnectivity(): Promise<void> {
+    if (!this.config.localClient) {
+      this.isLocalOnline = false;
+      this.lastLocalIssue = 'Local database client is not configured';
+      return;
+    }
+
+    const wasOnline = this.isLocalOnline;
+    try {
+      await this.config.localClient.$queryRawUnsafe('SELECT 1');
+      this.isLocalOnline = true;
+      this.lastLocalIssue = null;
+
+      if (!wasOnline) {
+        this.logger.log('Local database connection AVAILABLE - enabling bidirectional sync mode');
+      }
+    } catch (error: any) {
+      this.isLocalOnline = false;
+      this.lastLocalIssue = this.getErrorSummary(error);
+      if (wasOnline) {
+        this.logger.warn(`Local database unavailable - switching to cloud-only mode. Reason: ${this.lastLocalIssue}`);
       }
     }
   }
@@ -190,11 +283,15 @@ export class DatabaseConfigService implements OnModuleDestroy {
                 try {
                   return await (cloudClient as any)[prop](...args);
                 } catch (cloudError: any) {
-                  const isConnError = self.isConnectivityError(cloudError);
-                  const shortMsg = isConnError ? 'Database unreachable' : (cloudError.message?.split('\\n')[0] || 'Unknown error');
+                  const isCloudUnavailable = self.isCloudUnavailableError(cloudError);
+                  const errorSummary = self.getErrorSummary(cloudError);
+                  const shortMsg = isCloudUnavailable
+                    ? `Database unreachable or schema unavailable: ${errorSummary}`
+                    : errorSummary;
                   logger.warn(`Cloud raw query failed, falling back to local: ${String(prop)}: ${shortMsg}`);
-                  if (isConnError) {
+                  if (isCloudUnavailable) {
                     self.isCloudOnline = false;
+                    self.lastCloudIssue = errorSummary;
                   }
                 }
               }
@@ -210,12 +307,13 @@ export class DatabaseConfigService implements OnModuleDestroy {
                   await (cloudClient as any)[prop](...args);
                   logger.debug(`Cloud sync OK: ${String(prop)}`);
                 } catch (cloudError: any) {
-                  logger.warn(`Cloud raw execute failed: ${String(prop)}: ${cloudError.message}`);
+                  logger.warn(`Cloud raw execute failed: ${String(prop)}: ${self.getErrorSummary(cloudError)}`);
                   // Note: Queueing raw executes is hard because arguments might contain complex templating,
                   // but we queue it anyway and hope the arguments survive serialization if needed.
                   self.queuePendingWrite('$prisma', String(prop), args);
-                  if (self.isConnectivityError(cloudError)) {
+                  if (self.isCloudUnavailableError(cloudError)) {
                     self.isCloudOnline = false;
+                    self.lastCloudIssue = self.getErrorSummary(cloudError);
                     logger.warn('Cloud connection LOST - switching to offline mode');
                   }
                 }
@@ -249,11 +347,15 @@ export class DatabaseConfigService implements OnModuleDestroy {
                         return await cloudModel[methodName](...args);
                       }
                     } catch (cloudError: any) {
-                      const isConnError = self.isConnectivityError(cloudError);
-                      const shortMsg = isConnError ? 'Database unreachable' : (cloudError.message?.split('\n')[0] || 'Unknown error');
+                      const isCloudUnavailable = self.isCloudUnavailableError(cloudError);
+                      const errorSummary = self.getErrorSummary(cloudError);
+                      const shortMsg = isCloudUnavailable
+                        ? `Database unreachable or schema unavailable: ${errorSummary}`
+                        : errorSummary;
                       logger.warn(`Cloud read failed, falling back to local: ${String(prop)}.${methodName}: ${shortMsg}`);
-                      if (isConnError) {
+                      if (isCloudUnavailable) {
                         self.isCloudOnline = false;
+                        self.lastCloudIssue = errorSummary;
                       }
                     }
                   }
@@ -280,13 +382,14 @@ export class DatabaseConfigService implements OnModuleDestroy {
                       }
                     } catch (cloudError: any) {
                       logger.warn(
-                        'Cloud write failed: ' + String(prop) + '.' + methodName + ': ' + cloudError.message,
+                        'Cloud write failed: ' + String(prop) + '.' + methodName + ': ' + self.getErrorSummary(cloudError),
                       );
                       // Queue for retry
                       self.queuePendingWrite(String(prop), String(methodName), args);
                       // Mark as offline if it is a connectivity error
-                      if (self.isConnectivityError(cloudError)) {
+                      if (self.isCloudUnavailableError(cloudError)) {
                         self.isCloudOnline = false;
+                        self.lastCloudIssue = self.getErrorSummary(cloudError);
                         logger.warn('Cloud connection LOST - switching to offline mode');
                       }
                     }
@@ -341,6 +444,22 @@ export class DatabaseConfigService implements OnModuleDestroy {
     );
   }
 
+  private isSchemaError(error: any): boolean {
+    const code = String(error?.code || '');
+    const msg = String(error?.message || '').toLowerCase();
+    return (
+      code === 'P2021' ||
+      code === 'P2022' ||
+      msg.includes('table') && msg.includes('does not exist') ||
+      msg.includes('unknown table') ||
+      msg.includes('column') && msg.includes('does not exist')
+    );
+  }
+
+  private isCloudUnavailableError(error: any): boolean {
+    return this.isConnectivityError(error) || this.isSchemaError(error);
+  }
+
   /**
    * Sync all pending writes to cloud.
    * Called every 60s and immediately when network is restored.
@@ -378,14 +497,15 @@ export class DatabaseConfigService implements OnModuleDestroy {
           toRetry.push(pw);
         } else {
           this.logger.error(
-            'Gave up on ' + pw.tableName + '.' + pw.methodName + ' after 5 retries: ' + error.message,
+            'Gave up on ' + pw.tableName + '.' + pw.methodName + ' after 5 retries: ' + this.getErrorSummary(error),
           );
         }
         failed++;
 
-        // If connectivity error, stop trying the rest
-        if (this.isConnectivityError(error)) {
+        // If cloud is unavailable (network/schema), stop trying the rest
+        if (this.isCloudUnavailableError(error)) {
           this.isCloudOnline = false;
+          this.lastCloudIssue = this.getErrorSummary(error);
           const idx = this.pendingWrites.indexOf(pw);
           const remaining = this.pendingWrites.slice(idx + 1);
           toRetry.push(...remaining);
@@ -404,6 +524,38 @@ export class DatabaseConfigService implements OnModuleDestroy {
     }
   }
 
+  private withLegacyModelAliases<T extends PrismaClient | undefined>(client: T): T {
+    if (!client) return client;
+
+    const cachedProxy = this.compatibilityProxyCache.get(client as unknown as object);
+    if (cachedProxy) return cachedProxy as T;
+
+    const aliasMap = this.legacyModelAliases;
+    const proxy = new Proxy(client as any, {
+      get(target: any, prop: string | symbol, receiver: any) {
+        const directValue = Reflect.get(target, prop, receiver);
+        if (directValue !== undefined || typeof prop !== 'string') {
+          return directValue;
+        }
+
+        const alias = aliasMap[prop];
+        if (!alias) {
+          return directValue;
+        }
+
+        const mappedValue = Reflect.get(target, alias, receiver);
+        if (mappedValue !== undefined) {
+          return mappedValue;
+        }
+
+        return directValue;
+      },
+    });
+
+    this.compatibilityProxyCache.set(client as unknown as object, proxy as PrismaClient);
+    return proxy as T;
+  }
+
   // ─── Public API ───────────────────────────────────────────────────
 
   getConfig(): DatabaseConfig {
@@ -411,22 +563,21 @@ export class DatabaseConfigService implements OnModuleDestroy {
   }
 
   getCloudClient(): PrismaClient {
-    return this.config.cloudClient;
+    return this.withLegacyModelAliases(this.config.cloudClient)!;
   }
 
   getLocalClient(): PrismaClient | undefined {
-    return this.config.localClient;
+    return this.withLegacyModelAliases(this.config.localClient);
   }
 
   getDatabaseClient(request?: any): PrismaClient {
-    // If local database is available, ALWAYS use dual-write proxy
-    // This provides offline fallback for ALL platforms (Mobile, Desktop, Web)
-    if (this.config.localClient) {
-      return this.createDualWriteProxy();
+    // Use bidirectional mode only when local DB is configured and currently reachable.
+    if (this.config.localClient && this.isLocalOnline) {
+      return this.withLegacyModelAliases(this.createDualWriteProxy())!;
     }
 
-    // Fallback to cloud only if no local DB
-    return this.config.cloudClient;
+    // Cloud-only mode when local is unavailable or not configured.
+    return this.withLegacyModelAliases(this.config.cloudClient)!;
   }
 
 
@@ -484,7 +635,7 @@ export class DatabaseConfigService implements OnModuleDestroy {
   }
 
   isHybridMode(): boolean {
-    return this.config.type === 'desktop-local' || this.config.type === 'web-local';
+    return !!this.config.localClient && this.isLocalOnline;
   }
 
   isMobilePlatform(request?: any): boolean {
@@ -495,12 +646,20 @@ export class DatabaseConfigService implements OnModuleDestroy {
   shouldUseLocalDatabase(request?: any): boolean {
     const platform = this.detectPlatformFromRequest(request);
     if (platform === 'mobile') return false;
-    return this.config.isLocalAvailable && this.config.localClient !== undefined && (platform === 'desktop' || platform === 'web');
+    return (
+      this.config.isLocalAvailable &&
+      this.config.localClient !== undefined &&
+      this.isLocalOnline &&
+      (platform === 'desktop' || platform === 'web')
+    );
   }
 
   getSyncStatus() {
     return {
       isCloudOnline: this.isCloudOnline,
+      lastCloudIssue: this.lastCloudIssue,
+      isLocalOnline: this.isLocalOnline,
+      lastLocalIssue: this.lastLocalIssue,
       pendingWrites: this.pendingWrites.length,
       isHybridMode: this.isHybridMode(),
     };
@@ -508,6 +667,7 @@ export class DatabaseConfigService implements OnModuleDestroy {
 
   async onModuleDestroy() {
     if (this.connectivityInterval) clearInterval(this.connectivityInterval);
+    if (this.localConnectivityInterval) clearInterval(this.localConnectivityInterval);
     if (this.syncInterval) clearInterval(this.syncInterval);
 
     // Try to flush pending writes before shutdown

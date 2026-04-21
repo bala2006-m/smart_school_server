@@ -5,7 +5,7 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
-import { Gender } from '@prisma/client';
+import { staff_gender  } from '@prisma/client';
 export class RegisterStaffDto {
     @IsString()
   @IsNotEmpty()
@@ -26,7 +26,7 @@ export class RegisterStaffDto {
   email: string;
 
   @IsString()
-   gender: Gender;
+   gender: staff_gender;
 
   @IsString()
   mobile: string;

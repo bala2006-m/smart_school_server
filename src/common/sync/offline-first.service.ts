@@ -299,7 +299,7 @@ export class OfflineFirstService {
         if (!data.username || !data.date || isNaN(school_id)) return null;
 
         return {
-          username_school_date: {
+          username_school_id_date: {
             username: data.username,
             school_id,
             date: new Date(data.date)
@@ -311,7 +311,7 @@ export class OfflineFirstService {
         if (!data.username || !data.date || isNaN(school_id)) return null;
 
         return {
-          username_school_date_staff: {
+          username_school_id_date: {
             username: data.username,
             school_id,
             date: new Date(data.date)

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
-import { StudentFeesStatus } from '@prisma/client'; // ensure you have this enum defined in schema
+import { studentfees_status } from '@prisma/client'; // ensure you have this enum defined in schema
 import { tr } from 'date-fns/locale';
 import { join } from 'path';
 
@@ -36,7 +36,7 @@ export class StudentFeesService {
         total_amount: total,
         paid_amount: 0,
         createdBy: createdBy,
-        status: StudentFeesStatus.PENDING,
+        status: studentfees_status.PENDING,
       },
     });
   }
@@ -62,10 +62,10 @@ export class StudentFeesService {
     const newPaid = studentFee.paid_amount + amount;
     const status =
       newPaid >= studentFee.total_amount
-        ? StudentFeesStatus.PAID
+        ? studentfees_status.PAID
         : newPaid > 0
-          ? StudentFeesStatus.PARTIALLY_PAID
-          : StudentFeesStatus.PENDING;
+          ? studentfees_status.PARTIALLY_PAID
+          : studentfees_status.PENDING;
 
     // Update the student fee progress
     await (client as any).studentFees.update({
@@ -675,7 +675,7 @@ export class StudentFeesService {
   /**
    * Update status manually (Admin use)
    */
-  async updateFeeStatus(studentFeeId: number, status: StudentFeesStatus) {
+  async updateFeeStatus(studentFeeId: number, status: studentfees_status) {
     const client = this.dbConfig.getDatabaseClient(this.request);
     return (client as any).studentFees.update({
       where: { aId: studentFeeId },

@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
-import { DayOfWeek } from '@prisma/client';
+import { classtimetable_dayOfWeek } from '@prisma/client';
 
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
@@ -60,7 +60,7 @@ export class ClassTimetableService {
       return {
         schoolId: parseInt(schoolIdStr, 10),
         classesId: parseInt(classesIdStr, 10),
-        dayOfWeek: dayOfWeekRaw as DayOfWeek,
+        dayOfWeek: dayOfWeekRaw as classtimetable_dayOfWeek,
         periodNumber: parseInt(periodNumberStr, 10),
         subject: subjectParts.join(' '),
       };

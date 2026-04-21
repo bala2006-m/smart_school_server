@@ -1,6 +1,6 @@
+import { rtefeepayment_status } from '@prisma/client';
 import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { BusFeesStatus } from '@prisma/client';
-
+ 
 export class CreateRtePaymentDto {
   @IsInt()
   school_id: number;
@@ -24,8 +24,8 @@ export class CreateRtePaymentDto {
   @IsOptional()
   reference_number?: string;
 
-  @IsEnum(BusFeesStatus)
-  status: BusFeesStatus;
+  @IsEnum(rtefeepayment_status)
+  status: rtefeepayment_status;
 
   @IsString()
   created_by: string;

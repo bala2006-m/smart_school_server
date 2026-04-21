@@ -19,7 +19,7 @@ export class ExamMarksService {
     class_id: number,
     username: string,
     title: string,
-    data: Prisma.ExamMarksUpdateInput,
+    data: Prisma.exammarksUpdateInput,
   ) {
     const client = this.dbConfig.getDatabaseClient(this.request);
     return (client as any).examMarks.update({

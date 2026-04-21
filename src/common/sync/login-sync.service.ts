@@ -80,16 +80,27 @@ export class LoginSyncService implements OnModuleInit {
       // Check if online before performing initial and cloud-to-local sync
       const syncStatus = this.dbConfig.getSyncStatus();
       if (!syncStatus.isCloudOnline || !syncStatus.isHybridMode) {
-        this.logger.warn(`⚠️ Offline mode active or local DB not found. Skipping initial cloud sync for school ${schoolId}. Modifications will be saved locally and synced when online.`);
+        const offlineReason = syncStatus.lastCloudIssue
+          ? ` Cloud reason: ${syncStatus.lastCloudIssue}`
+          : '';
+        this.logger.warn(
+          `Offline mode active (cloud unavailable or hybrid mode inactive). ` +
+          `Skipping initial cloud sync for school ${schoolId}. ` +
+          `Modifications will be saved locally and synced when cloud is available.${offlineReason}`,
+        );
 
-        // 1. Start periodic sync for this specific school (it handles its own offline checks)
-        this.logger.log(`🔄 Starting periodic sync interval for school ${schoolId}`);
-        this.startPeriodicSyncForSchool(schoolId, request);
+        // Periodic sync is already started by switchPeriodicSyncToSchool above.
+        this.logger.log(`Periodic sync already scheduled for school ${schoolId}`);
 
         return {
           success: true,
-          message: `Offline mode active for school ${schoolId}. Sync is queued for when network is available.`,
-          synced: { total: 0, message: "Offline mode active" }
+          message: `Offline mode active for school ${schoolId}. Sync is queued until cloud is available.`,
+          synced: {
+            total: 0,
+            message: syncStatus.lastCloudIssue
+              ? `Offline mode active. ${syncStatus.lastCloudIssue}`
+              : 'Offline mode active',
+          }
         };
       }
 
@@ -103,9 +114,8 @@ export class LoginSyncService implements OnModuleInit {
         this.logger.warn(`⚠️ Initial sync failed, but continuing with periodic sync`);
       }
 
-      // 2. Start periodic sync for this specific school
-      this.logger.log(`🔄 Starting periodic sync for school ${schoolId}`);
-      this.startPeriodicSyncForSchool(schoolId, request);
+      // Periodic sync is already started by switchPeriodicSyncToSchool above.
+      this.logger.log(`🔄 Periodic sync already scheduled for school ${schoolId}`);
 
       // 3. Perform immediate cloud-to-local sync for latest data
       this.logger.log(`🔄 Starting immediate cloud-to-local sync for school ${schoolId}`);
@@ -218,11 +228,11 @@ export class LoginSyncService implements OnModuleInit {
     }
     // Check if request is from mobile platform - if so, don't start sync
     if (request && this.isMobilePlatform(request)) {
-      this.logger.log(`� Mobile platform detected - NOT starting periodic sync for school ${schoolId}`);
+      this.logger.log(`Mobile platform detected - NOT starting periodic sync for school ${schoolId}`);
       return;
     }
 
-    this.logger.log(`🖥️ Desktop/Web platform detected - Starting periodic sync for school ${schoolId}`);
+    this.logger.log(`Desktop/Web platform detected - Starting periodic sync for school ${schoolId}`);
 
     // Stop existing periodic sync for this school
     this.stopPeriodicSyncForSchool(schoolId);
@@ -329,7 +339,7 @@ export class LoginSyncService implements OnModuleInit {
         'attendance_user', 'busfeepayment', 'admin', 'classes', 'staff', 'students',
         'feestructure', 'busfeestructure', 'rtestructure', 'classtimetable',
         'examtimetable', 'holidays', 'imageandvideos', 'studentfees',
-        'messages', 'appPayment'
+        'messages', 'accadamicYear', 'appPayment'
       ];
 
       this.logger.log(`🔄 Periodic sync: Processing all ${allTables.length} tables with count + content check`);
@@ -345,7 +355,7 @@ export class LoginSyncService implements OnModuleInit {
         }
         try {
           // Tables that need full sync (create/delete operations)
-          const fullSyncTables = ['school', 'rtefeepayment', 'busfeepayment', 'feepayments', 'homework', 'tickets', 'exammarks', 'finance', 'leaverequest', 'messages'];
+          const fullSyncTables = ['school', 'rtefeepayment', 'busfeepayment', 'feepayments', 'homework', 'tickets', 'exammarks', 'finance', 'leaverequest', 'messages', 'accadamicYear'];
 
           if (fullSyncTables.includes(tableName)) {
             this.logger.log(`🔄 ${tableName}: Requires full sync for create/delete operations`);
@@ -538,11 +548,11 @@ export class LoginSyncService implements OnModuleInit {
           break;
         case 'feepayments':
           cloudData = await cloudClient.feePayments?.findMany?.({
-            where: { studentFee: { school_id: schoolId } },
+            where: { studentfees: { school_id: schoolId } },
             orderBy: { id: 'asc' }
           }) || [];
           localData = await localClient.feePayments?.findMany?.({
-            where: { studentFee: { school_id: schoolId } },
+            where: { studentfees: { school_id: schoolId } },
             orderBy: { id: 'asc' }
           }) || [];
           break;
@@ -666,6 +676,16 @@ export class LoginSyncService implements OnModuleInit {
             orderBy: { id: 'asc' }
           }) || [];
           localData = await localClient.messages?.findMany?.({
+            where: { school_id: schoolId },
+            orderBy: { id: 'asc' }
+          }) || [];
+          break;
+        case 'accadamicYear':
+          cloudData = await cloudClient.accadamicYear?.findMany?.({
+            where: { school_id: schoolId },
+            orderBy: { id: 'asc' }
+          }) || [];
+          localData = await localClient.accadamicYear?.findMany?.({
             where: { school_id: schoolId },
             orderBy: { id: 'asc' }
           }) || [];
@@ -888,6 +908,10 @@ export class LoginSyncService implements OnModuleInit {
           cloudCount = await cloudClient.messages?.count?.({ where: { school_id: schoolId } }) || 0;
           localCount = await localClient.messages?.count?.({ where: { school_id: schoolId } }) || 0;
           break;
+        case 'accadamicYear':
+          cloudCount = await cloudClient.accadamicYear?.count?.({ where: { school_id: schoolId } }) || 0;
+          localCount = await localClient.accadamicYear?.count?.({ where: { school_id: schoolId } }) || 0;
+          break;
         case 'appPayment':
           this.logger.log(`🔍 Checking appPayment counts...`);
           try {
@@ -943,12 +967,12 @@ export class LoginSyncService implements OnModuleInit {
         case 'feepayments':
           cloudCount = await cloudClient.feePayments?.count?.({
             where: {
-              studentFee: { school_id: schoolId }
+              studentfees: { school_id: schoolId }
             }
           }) || 0;
           localCount = await localClient.feePayments?.count?.({
             where: {
-              studentFee: { school_id: schoolId }
+              studentfees: { school_id: schoolId }
             }
           }) || 0;
           break;
@@ -1116,6 +1140,14 @@ export class LoginSyncService implements OnModuleInit {
             where: { school_id: schoolId }
           }) || [];
           break;
+        case 'accadamicYear':
+          cloudData = await cloudClient.accadamicYear?.findMany?.({
+            where: { school_id: schoolId }
+          }) || [];
+          localData = await localClient.accadamicYear?.findMany?.({
+            where: { school_id: schoolId }
+          }) || [];
+          break;
         case 'appPayment':
           this.logger.log(`🔍 Syncing appPayment full table...`);
           try {
@@ -1198,10 +1230,10 @@ export class LoginSyncService implements OnModuleInit {
           break;
         case 'feepayments':
           cloudData = await cloudClient.feePayments?.findMany?.({
-            where: { studentFee: { school_id: schoolId } }
+            where: { studentfees: { school_id: schoolId } }
           }) || [];
           localData = await localClient.feePayments?.findMany?.({
-            where: { studentFee: { school_id: schoolId } }
+            where: { studentfees: { school_id: schoolId } }
           }) || [];
           break;
         case 'rtefeepayment':
@@ -1254,13 +1286,13 @@ export class LoginSyncService implements OnModuleInit {
             const dateStr = record.date instanceof Date ? record.date.toISOString().split('T')[0] : String(record.date).split('T')[0];
             const deleteWhere: any = {};
             if (tableName === 'studentAttendance') {
-              deleteWhere.username_school_date = {
+              deleteWhere.username_school_id_date = {
                 username: record.username,
                 school_id: record.school_id,
                 date: new Date(dateStr)
               };
             } else {
-              deleteWhere.username_school_date_staff = {
+              deleteWhere.username_school_id_date = {
                 username: record.username,
                 school_id: record.school_id,
                 date: new Date(dateStr)
@@ -1373,6 +1405,11 @@ export class LoginSyncService implements OnModuleInit {
           break;
         case 'messages':
           await localClient.messages?.delete?.({
+            where: { id: recordId }
+          });
+          break;
+        case 'accadamicYear':
+          await localClient.accadamicYear?.delete?.({
             where: { id: recordId }
           });
           break;
@@ -1544,6 +1581,13 @@ export class LoginSyncService implements OnModuleInit {
             create: item as any
           });
           break;
+        case 'accadamicYear':
+          await localClient.accadamicYear?.upsert?.({
+            where: { id: item.id },
+            update: item as any,
+            create: item as any
+          });
+          break;
         case 'appPayment':
           this.logger.log(`🔍 Upserting appPayment record ID: ${item.id}`);
           try {
@@ -1568,7 +1612,7 @@ export class LoginSyncService implements OnModuleInit {
         case 'studentAttendance':
           await localClient.studentAttendance?.upsert?.({
             where: {
-              username_school_date: {
+              username_school_id_date: {
                 username: item.username,
                 school_id: item.school_id,
                 date: item.date
@@ -1581,7 +1625,7 @@ export class LoginSyncService implements OnModuleInit {
         case 'staffAttendance':
           await localClient.staffAttendance?.upsert?.({
             where: {
-              username_school_date_staff: {
+              username_school_id_date: {
                 username: item.username,
                 school_id: item.school_id,
                 date: item.date
@@ -1713,7 +1757,7 @@ export class LoginSyncService implements OnModuleInit {
         case 'feepayments':
           cloudData = await cloudClient.feePayments.findMany({
             where: {
-              studentFee: { school_id: schoolId },
+              studentfees: { school_id: schoolId },
               updated_at: { gt: lastSyncTime }
             },
             orderBy: { updated_at: 'asc' }
@@ -1765,14 +1809,26 @@ export class LoginSyncService implements OnModuleInit {
     switch (tableName) {
       case 'studentAttendance':
         await localClient.studentAttendance.upsert({
-          where: { id: item.id },
+          where: {
+            username_school_id_date: {
+              username: item.username,
+              school_id: item.school_id,
+              date: item.date
+            }
+          },
           update: item as any,
           create: item as any
         });
         break;
       case 'staffAttendance':
         await localClient.staffAttendance.upsert({
-          where: { id: item.id },
+          where: {
+            username_school_id_date: {
+              username: item.username,
+              school_id: item.school_id,
+              date: item.date
+            }
+          },
           update: item as any,
           create: item as any
         });
@@ -1918,3 +1974,4 @@ export class LoginSyncService implements OnModuleInit {
     return await this.triggerLoginSync(schoolId);
   }
 }
+

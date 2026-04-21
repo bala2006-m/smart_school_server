@@ -8,7 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { StudentFeesService } from './student_fees.service';
-import { StudentFeesStatus } from '@prisma/client';
+import { studentfees_status } from '@prisma/client';
 
 @Controller('student-fees')
 export class StudentFeesController {
@@ -137,7 +137,7 @@ export class StudentFeesController {
   @Patch('status')
   async updateFeeStatus(
     @Body()
-    body: { studentFeeId: number; status: StudentFeesStatus },
+    body: { studentFeeId: number; status: studentfees_status },
   ) {
     return this.studentFeesService.updateFeeStatus(
       body.studentFeeId,

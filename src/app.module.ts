@@ -37,6 +37,7 @@ import { StudentAttendanceSyncModule } from './modules/sync/student-attendance/s
 import { SyncModule } from './common/sync/sync.module';
 import { OfflineFirstInterceptor } from './common/sync/offline-first.interceptor';
 import { DatabaseConfigModule } from './common/database/database.module';
+import { AcadamicYearModule } from './acadamic_year/acadamic_year.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { DatabaseConfigModule } from './common/database/database.module';
     ExamTimeTableModule,
     StudentAttendanceSyncModule,
     SyncModule,
+    AcadamicYearModule,
   ],
   controllers: [AppController],
   providers: [

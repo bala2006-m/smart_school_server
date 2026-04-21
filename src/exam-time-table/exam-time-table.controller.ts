@@ -18,7 +18,7 @@ export class ExamTimeTableController {
 
   // Create
   @Post()
-  create(@Body() data: Prisma.ExamTimeTableCreateInput) {
+  create(@Body() data: Prisma.examtimetableCreateInput) {
     return this.service.create(data);
   }
 
@@ -47,7 +47,7 @@ export class ExamTimeTableController {
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() data: Prisma.ExamTimeTableUpdateInput,
+    @Body() data: Prisma.examtimetableUpdateInput,
   ) {
     return this.service.update(id, data);
   }
