@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
+import { RequestContextService } from '../common/context/request-context.service';
 
 @Injectable()
 export class ExamMarksService {
@@ -97,6 +98,12 @@ export class ExamMarksService {
     if (filters.username) where.username = filters.username;
     if (filters.title) where.title = filters.title;
 
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+    if (academicStart && academicEnd) {
+      where.created_at = { gte: academicStart, lte: academicEnd };
+    }
+
     // Fetch exam marks
     const examMarks = await (client as any).examMarks.findMany({
       where,
@@ -182,6 +189,12 @@ export class ExamMarksService {
 
     if (filters.schoolId) where.school_id = filters.schoolId;
     if (filters.classId) where.class_id = filters.classId;
+
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+    if (academicStart && academicEnd) {
+      where.created_at = { gte: academicStart, lte: academicEnd };
+    }
 
     const examMarks = await (client as any).examMarks.findMany({
       where,

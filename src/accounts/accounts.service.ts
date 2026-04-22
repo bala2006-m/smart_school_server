@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Inject } from '@nes
 import { PrismaService } from '../common/prisma.service';
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
+import { RequestContextService } from '../common/context/request-context.service';
 
 @Injectable()
 export class AccountsService {
@@ -12,13 +13,19 @@ export class AccountsService {
   ) { }
   async fetchAll(school_id?: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
+    const academicDateFilter = academicStart && academicEnd ? { createdAt: { gte: academicStart, lte: academicEnd } } : {};
+    const paymentDateFilter = academicStart && academicEnd ? { payment_date: { gte: academicStart, lte: academicEnd } } : {};
+
     const accountsCash = await (client as any).studentFees.findMany({
       where: {
         school_id: Number(school_id), payments: {
           every: {
             method: 'cash'
           }
-        }
+        },
+        ...academicDateFilter,
       },
       select: { paid_amount: true }
     });
@@ -28,24 +35,25 @@ export class AccountsService {
           every: {
             method: 'online'
           }
-        }
+        },
+        ...academicDateFilter,
       },
       select: { paid_amount: true }
     });
     const busCash = await (client as any).busFeePayment.findMany({
-      where: { school_id: Number(school_id), payment_mode: 'CASH' },
+      where: { school_id: Number(school_id), payment_mode: 'CASH', ...paymentDateFilter },
       select: { amount_paid: true }
     });
     const busOnline = await (client as any).busFeePayment.findMany({
-      where: { school_id: Number(school_id), payment_mode: 'ONLINE' },
+      where: { school_id: Number(school_id), payment_mode: 'ONLINE', ...paymentDateFilter },
       select: { amount_paid: true }
     });
     const rteCash = await (client as any).rteFeePayment.findMany({
-      where: { school_id: Number(school_id), payment_mode: 'cash' },
+      where: { school_id: Number(school_id), payment_mode: 'cash', ...paymentDateFilter },
       select: { amount_paid: true }
     });
     const rteOnline = await (client as any).rteFeePayment.findMany({
-      where: { school_id: Number(school_id), payment_mode: 'online' },
+      where: { school_id: Number(school_id), payment_mode: 'online', ...paymentDateFilter },
       select: { amount_paid: true }
     });
     // helper to sum amounts

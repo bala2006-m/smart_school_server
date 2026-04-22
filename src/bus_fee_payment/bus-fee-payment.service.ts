@@ -4,6 +4,7 @@ import { PrismaService } from '../common/prisma.service'; // adjust path as need
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
 import { busfeepayment_status } from '@prisma/client';
+import { RequestContextService } from '../common/context/request-context.service';
  
 @Injectable()
 export class BusFeePaymentService {
@@ -147,8 +148,13 @@ export class BusFeePaymentService {
   // 🟣 FIND BY SCHOOL
   async findBySchool(school_id: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
     const data = await (client as any).busFeePayment.findMany({
-      where: { school_id },
+      where: {
+        school_id,
+        ...(academicStart && academicEnd ? { payment_date: { gte: academicStart, lte: academicEnd } } : {}),
+      },
       include: { student: true, busFeeStructure: true, classes: true, admin: true },
       orderBy: { created_at: 'desc' },
     });
@@ -316,10 +322,13 @@ export class BusFeePaymentService {
     });
 
     // 3️⃣ Get all payments in ONE QUERY
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
     const payments = await (client as any).busFeePayment.findMany({
       where: {
         bus_fee_structure_id: { in: busFeeIds },
         status: { in: ['PAID', 'PARTIALLY_PAID'] },
+        ...(academicStart && academicEnd ? { payment_date: { gte: academicStart, lte: academicEnd } } : {}),
       },
       select: {
         bus_fee_structure_id: true,

@@ -605,6 +605,7 @@ export class DatabaseConfigService implements OnModuleDestroy {
     if (cachedProxy) return cachedProxy as T;
 
     const aliasMap = this.legacyModelAliases;
+    const self = this;
     const proxy = new Proxy(client as any, {
       get(target: any, prop: string | symbol, receiver: any) {
         const wrapModelDelegate = (modelName: string, value: any) => {
@@ -618,7 +619,7 @@ export class DatabaseConfigService implements OnModuleDestroy {
               }
 
               return (...args: any[]) => {
-                const filteredArgs = this.applyAcademicFilterToArgs(modelName, methodName, args);
+                const filteredArgs = self.applyAcademicFilterToArgs(modelName, methodName, args);
                 return originalMethod.apply(modelTarget, filteredArgs);
               };
             },

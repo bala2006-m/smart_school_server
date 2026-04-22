@@ -17,6 +17,14 @@ export class CloudToLocalSyncService {
     );
   }
 
+  private normalizeDate(value: unknown): Date | null {
+    if (!value) return null;
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+
+    const parsed = new Date(value as any);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
   // Sync all new messages from cloud to local database
   async syncMessagesFromCloud(schoolIdInput: number | string, lastSyncTime?: Date): Promise<{ synced: number; failed: number }> {
     const schoolId = Number(schoolIdInput);
@@ -52,8 +60,9 @@ export class CloudToLocalSyncService {
 
       // Get messages from cloud that are newer than last sync
       const whereClause: any = { school_id: schoolId };
-      if (lastSyncTime) {
-        whereClause.date = { gt: lastSyncTime.toISOString() };
+      const safeLastSyncTime = this.normalizeDate(lastSyncTime);
+      if (safeLastSyncTime) {
+        whereClause.date = { gt: safeLastSyncTime.toISOString() };
       }
 
       const cloudMessages = await cloudClient.messages.findMany({
@@ -137,7 +146,7 @@ export class CloudToLocalSyncService {
           return null;
       }
 
-      return (latestRecord?.date as Date) || null;
+      return this.normalizeDate(latestRecord?.date);
     } catch (error) {
       this.logger.error(`Failed to get last sync time: ${error.message}`);
       return null;

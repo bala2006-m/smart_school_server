@@ -23,6 +23,10 @@ export class AuthService {
     @Inject(REQUEST) private readonly request: any,
   ) { }
 
+  private getAttendanceUserModel(client: any) {
+    return client.attendance_user ?? client.attendanceUser;
+  }
+
   async register(data: RegisterDto) {
     const client = this.dbConfig.getDatabaseClient(this.request);
     const { username, password, role, school_id } = data;
@@ -442,37 +446,56 @@ export class AuthService {
     }
 
     const schoolIdNum = Number(school_id);
+    const attendanceUserModel = this.getAttendanceUserModel(client as any);
+    if (!attendanceUserModel) {
+      throw new InternalServerErrorException('Attendance user model unavailable');
+    }
 
-    // Try to find the user in attendance_user table first (centralized table)
-    const user = await (client as any).attendance_user.findUnique({
-      where: {
-        username_school_id: {
+    try {
+      // Prefer exact school-scoped lookup.
+      let user = await attendanceUserModel.findFirst({
+        where: {
           username,
           school_id: schoolIdNum,
         },
-      },
-    });
+      });
 
-    if (!user) {
-      throw new BadRequestException('Invalid username or school ID');
+      // Legacy/local fallback: same username may exist without expected school mapping.
+      if (!user) {
+        user = await attendanceUserModel.findFirst({
+          where: { username },
+          orderBy: { id: 'asc' },
+        });
+      }
+
+      if (!user) {
+        throw new BadRequestException('Invalid username or school ID');
+      }
+
+      // Verify password on server
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new BadRequestException('Invalid password');
+      }
+
+      return {
+        status: 'success',
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          school_id: user.school_id,
+          password: user.password, // Frontend expects hashed password for local compatibility
+        },
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `Login failed: ${error?.message ?? 'Unexpected error'}`,
+      );
     }
-
-    // Verify password on server
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new BadRequestException('Invalid password');
-    }
-
-    return {
-      status: 'success',
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        school_id: user.school_id,
-        password: user.password, // Frontend expects hashed password for local compatibility
-      },
-    };
   }
 }

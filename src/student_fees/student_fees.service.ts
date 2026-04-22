@@ -6,6 +6,7 @@ import { join } from 'path';
 
 import { REQUEST } from '@nestjs/core';
 import { DatabaseConfigService } from '../common/database/database.config';
+import { RequestContextService } from '../common/context/request-context.service';
 
 @Injectable()
 export class StudentFeesService {
@@ -82,16 +83,26 @@ export class StudentFeesService {
 
   async getStudentFee(username: string, schoolId: number, classId: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
     return (client as any).studentFees.findMany({
-      where: { username, school_id: Number(schoolId), class_id: Number(classId) },
+      where: {
+        username, school_id: Number(schoolId), class_id: Number(classId),
+        ...(academicStart && academicEnd ? { createdAt: { gte: academicStart, lte: academicEnd } } : {}),
+      },
       include: { payments: true, admin: true },
     });
   }
 
   async getFeesByClass(schoolId: number, classId: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
     return (client as any).studentFees.findMany({
-      where: { school_id: Number(schoolId), class_id: Number(classId) },
+      where: {
+        school_id: Number(schoolId), class_id: Number(classId),
+        ...(academicStart && academicEnd ? { createdAt: { gte: academicStart, lte: academicEnd } } : {}),
+      },
       orderBy: {
         createdAt: 'asc'
       },
@@ -114,11 +125,14 @@ export class StudentFeesService {
   }
   async getPaidFeesByClass(schoolId: number, classId: number) {
     const client = this.dbConfig.getDatabaseClient(this.request);
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
     return (client as any).studentFees.findMany({
       where: {
         school_id: Number(schoolId), class_id: Number(classId), status: {
           in: ['PAID', 'PARTIALLY_PAID']
         },
+        ...(academicStart && academicEnd ? { createdAt: { gte: academicStart, lte: academicEnd } } : {}),
       },
       orderBy: {
         id: 'asc',
@@ -348,10 +362,13 @@ export class StudentFeesService {
     });
 
     // 3️⃣ Get all student fees (single query)
+    const academicStart = RequestContextService.academicStart;
+    const academicEnd = RequestContextService.academicEnd;
     const studentFees = await (client as any).studentFees.findMany({
       where: {
         school_id,
-        status: { in: ['PAID', 'PARTIALLY_PAID'] }
+        status: { in: ['PAID', 'PARTIALLY_PAID'] },
+        ...(academicStart && academicEnd ? { createdAt: { gte: academicStart, lte: academicEnd } } : {}),
       },
       select: {
         username: true,
