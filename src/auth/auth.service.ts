@@ -451,6 +451,8 @@ export class AuthService {
       throw new InternalServerErrorException('Attendance user model unavailable');
     }
 
+    throw new InternalServerErrorException('Login failed: Test error message');
+
     try {
       // Prefer exact school-scoped lookup.
       let user = await attendanceUserModel.findFirst({

@@ -269,7 +269,8 @@ export class StudentsService {
           route: true,
           address: true,
           date_of_join: true,
-          class: {
+          
+          classes: {
             select: {
               id: true,
               class: true,
