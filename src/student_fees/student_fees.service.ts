@@ -18,7 +18,7 @@ export class StudentFeesService {
 
   async assignStudentFees(schoolId: number, classId: number, username: string, id: number, createdBy: string) {
     const client = this.dbConfig.getDatabaseClient(this.request);
-    const structures = await (client as any).feeStructure.findMany({
+    const structures = await (client as any).feestructure.findMany({
       where: { school_id: schoolId, class_id: classId, status: 'active', id },
     });
 
@@ -138,7 +138,7 @@ export class StudentFeesService {
         id: 'asc',
       },
       include: {
-        payments: true, user: {
+        feepayments: true, student: {
           select: {
             id: true,
             username: true,
@@ -154,7 +154,7 @@ export class StudentFeesService {
           select: {
             name: true,
           }
-        }, feeStructure: true
+        }, feestructure: true
       },
     });
   }
@@ -343,13 +343,13 @@ export class StudentFeesService {
     const client = this.dbConfig.getDatabaseClient(this.request);
 
     // 1️⃣ Get active fee structures
-    const allFees = await (client as any).feeStructure.findMany({
+    const allFees = await (client as any).feestructure.findMany({
       where: { school_id, status: 'active' },
       select: {
         id: true,
         class_id: true,
         total_amount: true,
-        class: {
+        classes: {
           select: { class: true, section: true }
         }
       }
@@ -375,7 +375,7 @@ export class StudentFeesService {
         class_id: true,
         status: true,
         paid_amount: true,
-        feeStructure: true,
+        feestructure: true,
         // feeStructureId: true
       }
     });
@@ -389,7 +389,7 @@ export class StudentFeesService {
 
     // Prepare class fee totals
     for (const fee of allFees) {
-      const label = `${fee.class.class}-${fee.class.section}`;
+      const label = `${fee.classes.class}-${fee.classes.section}`;
 
       if (!classMap[label]) {
         classMap[label] = {
@@ -430,7 +430,7 @@ export class StudentFeesService {
       studentPaymentMap[key].paidAmount += Number(fee.paid_amount || 0);
 
       if (fee.status === 'PAID') {
-        studentPaymentMap[key].paidFeeIds.push(fee.feeStructure.id);
+        studentPaymentMap[key].paidFeeIds.push(fee.feestructure.id);
       }
     }
 
@@ -547,7 +547,7 @@ export class StudentFeesService {
           }
         },
         admin: true,
-        feeStructure: true,
+        feestructure: true,
         class: true,
       },
     });
@@ -592,7 +592,7 @@ export class StudentFeesService {
           }
         },
         admin: true,
-        feeStructure: true,
+        feestructure: true,
         class: true,
       },
     });
@@ -635,7 +635,7 @@ export class StudentFeesService {
           }
         },
         admin: true,
-        feeStructure: true,
+        feestructure: true,
         class: true,
       },
     });
@@ -681,7 +681,7 @@ export class StudentFeesService {
           }
         },
         admin: true,
-        feeStructure: true,
+        feestructure: true,
         class: true,
       },
     });
@@ -706,19 +706,19 @@ export class StudentFeesService {
     const classesWithFees = await (client as any).classes.findMany({
       where: {
         school_id: schoolId,
-        feeStructure: {
+        feestructure: {
           some: {}, // class has at least one fee structure
         },
       },
       include: {
-        feeStructure: true,
+        feestructure: true,
       },
     });
 
     // Map to hold classId => array of feeStructure ids for quick lookup
     const classFeeMap = new Map<number, number[]>();
     classesWithFees.forEach(cls => {
-      classFeeMap.set(cls.id, cls.feeStructure.map(f => f.id));
+      classFeeMap.set(cls.id, cls.feestructure.map(f => f.id));
     });
 
     const classIds = [...classFeeMap.keys()];
@@ -741,7 +741,7 @@ export class StudentFeesService {
         class: true,
         studentFees: {
           include: {
-            feeStructure: {
+            feestructure: {
               select: {
                 id: true,
                 school_id: true,
@@ -764,7 +764,7 @@ export class StudentFeesService {
       const feesForClass = classFeeMap.get(student.class_id) || [];
 
       // Use feeStructure.id from studentFee to map with feesForClass
-      const studentFeeStructureIds = student.studentFees.map(sf => sf.feeStructure.id);
+      const studentFeeStructureIds = student.studentFees.map(sf => sf.feestructure.id);
 
       // Check if any fee is PARTIALLY_PAID => include
       if (student.studentFees.some(sf => sf.status === 'PARTIALLY_PAID')) {
@@ -786,7 +786,7 @@ export class StudentFeesService {
       school_id: schoolId,
       totalPending: pendingStudents.length,
       students: pendingStudents,
-      feeStructures: classesWithFees.flatMap(c => c.feeStructure),
+      feeStructures: classesWithFees.flatMap(c => c.feestructure),
     };
   }
 
@@ -809,21 +809,21 @@ export class StudentFeesService {
       where: {
         id: class_id,
         school_id: schoolId,
-        feeStructure: {
+        feestructure: {
           some: {
 
           },
         },
       },
       include: {
-        feeStructure: true,
+        feestructure: true,
       },
     });
 
     // Map to hold classId => array of feeStructure ids for quick lookup
     const classFeeMap = new Map<number, number[]>();
     classesWithFees.forEach(cls => {
-      classFeeMap.set(cls.id, cls.feeStructure.map(f => f.id));
+      classFeeMap.set(cls.id, cls.feestructure.map(f => f.id));
     });
 
     const classIds = [...classFeeMap.keys()];
@@ -846,7 +846,7 @@ export class StudentFeesService {
         class: true,
         studentFees: {
           include: {
-            feeStructure: {
+            feestructure: {
               select: {
                 id: true,
                 school_id: true,
@@ -869,7 +869,7 @@ export class StudentFeesService {
       const feesForClass = classFeeMap.get(student.class_id) || [];
 
       // Use feeStructure.id from studentFee to map with feesForClass
-      const studentFeeStructureIds = student.studentFees.map(sf => sf.feeStructure.id);
+      const studentFeeStructureIds = student.studentFees.map(sf => sf.feestructure.id);
 
       // Check if any fee is PARTIALLY_PAID => include
       if (student.studentFees.some(sf => sf.status === 'PARTIALLY_PAID')) {
@@ -892,7 +892,7 @@ export class StudentFeesService {
       totalStudents: totalStudents.length,
       totalPending: pendingStudents.length,
       students: pendingStudents,
-      feeStructures: classesWithFees.flatMap(c => c.feeStructure),
+      feeStructures: classesWithFees.flatMap(c => c.feestructure),
     };
   }
 
@@ -902,19 +902,19 @@ export class StudentFeesService {
     const classesWithFees = await (client as any).classes.findMany({
       where: {
         school_id: schoolId,
-        feeStructure: {
+        feestructure: {
           some: {}, // class has at least one fee structure
         },
       },
       include: {
-        feeStructure: true,
+        feestructure: true,
       },
     });
 
     // Map to hold classId => array of feeStructure ids for quick lookup
     const classFeeMap = new Map<number, number[]>();
     classesWithFees.forEach(cls => {
-      classFeeMap.set(cls.id, cls.feeStructure.map(f => f.id));
+      classFeeMap.set(cls.id, cls.feestructure.map(f => f.id));
     });
 
     const classIds = [...classFeeMap.keys()];
@@ -937,7 +937,7 @@ export class StudentFeesService {
         class: true,
         studentFees: {
           include: {
-            feeStructure: {
+            feestructure: {
               select: {
                 id: true,
                 school_id: true,
@@ -960,7 +960,7 @@ export class StudentFeesService {
       const feesForClass = classFeeMap.get(student.class_id) || [];
 
       // Use feeStructure.id from studentFee to map with feesForClass
-      const studentFeeStructureIds = student.studentFees.map(sf => sf.feeStructure.id);
+      const studentFeeStructureIds = student.studentFees.map(sf => sf.feestructure.id);
 
       // Check if any fee is PARTIALLY_PAID => include
       if (student.studentFees.some(sf => sf.status === 'PARTIALLY_PAID')) {
@@ -982,7 +982,7 @@ export class StudentFeesService {
       school_id: schoolId,
       totalPending: pendingStudents.length,
       // students: pendingStudents.length,
-      feeStructures: classesWithFees.flatMap(c => c.feeStructure).length,
+      feeStructures: classesWithFees.flatMap(c => c.feestructure).length,
     };
   }
 

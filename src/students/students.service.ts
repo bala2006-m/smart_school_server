@@ -253,7 +253,7 @@ export class StudentsService {
           username_school_id: {
             username,
             school_id: Number(school_id),
-          }, is_left: true,
+          }
         },
         select: {
           name: true,
@@ -287,7 +287,12 @@ export class StudentsService {
           message: `No student found for username: ${username}`,
         };
       }
-
+if(student.is_left === false){
+        return {
+          status: 'success',student: null,
+          message: `Student with username: ${username} is marked as left (inactive)`,
+        };
+      }
       return { status: 'success', student };
     } catch (error) {
       console.error('Error in findByUsername:', error);

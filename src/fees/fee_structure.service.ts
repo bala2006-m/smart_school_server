@@ -72,7 +72,7 @@ export class FeeStructureService {
     return (client as any).feeStructure.findMany({
       where: { school_id: schoolId },
       include: {
-        class: true,
+        classes: true,
       },
       orderBy: { class_id: 'asc' },
     });
