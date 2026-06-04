@@ -90,7 +90,7 @@ export class StudentFeesService {
         username, school_id: Number(schoolId), class_id: Number(classId),
         ...(academicStart && academicEnd ? { createdAt: { gte: academicStart, lte: academicEnd } } : {}),
       },
-      include: { payments: true, admin: true },
+      include: { feepayments: true, admin: true },
     });
   }
 
@@ -107,7 +107,7 @@ export class StudentFeesService {
         createdAt: 'asc'
       },
       include: {
-        payments: true, user: {
+        feepayments: true, user: {
           select: {
             id: true,
             username: true,
@@ -532,7 +532,7 @@ export class StudentFeesService {
         class_id: 'asc',
       },
       include: {
-        payments: true,
+        feepayments: true,
         user: {
           select: {
             id: true,
@@ -577,7 +577,7 @@ export class StudentFeesService {
         class_id: 'asc',
       },
       include: {
-        payments: true,
+        feepayments: true,
         user: {
           select: {
             id: true,
@@ -620,8 +620,8 @@ export class StudentFeesService {
         class_id: 'asc',
       },
       include: {
-        payments: true,
-        user: {
+        feepayments: true,
+        student: {
           select: {
             id: true,
             username: true,
@@ -657,6 +657,7 @@ export class StudentFeesService {
         status: {
           in: ['PAID', 'PARTIALLY_PAID']
         },
+
         createdAt: {
           gte: startOfDay,
           lte: endOfDay,
@@ -666,8 +667,8 @@ export class StudentFeesService {
         class_id: 'asc',
       },
       include: {
-        payments: true,
-        user: {
+        feepayments: true,
+        student: {
           select: {
             id: true,
             username: true,
@@ -680,9 +681,21 @@ export class StudentFeesService {
             route: true,
           }
         },
-        admin: true,
+        admin: {
+          select: {
+            id: true,
+            name: true,
+            designation: true,
+            gender: true,
+            mobile: true,
+            email: true,
+
+            username: true,
+
+          }
+        },
         feestructure: true,
-        class: true,
+        classes: true,
       },
     });
   }
@@ -753,7 +766,7 @@ export class StudentFeesService {
                 status: true,
               },
             },
-            payments: true,
+            feepayments: true,
           },
         },
       },
@@ -858,7 +871,7 @@ export class StudentFeesService {
                 status: true,
               },
             },
-            payments: true,
+            feepayments: true,
           },
         },
       },
@@ -949,7 +962,7 @@ export class StudentFeesService {
                 status: true,
               },
             },
-            payments: true,
+            feepayments: true,
           },
         },
       },
